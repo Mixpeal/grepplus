@@ -17,13 +17,17 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             asset: grepplus-aarch64-apple-darwin.tar.gz
+            optional: false
           - os: macos-latest
             target: x86_64-apple-darwin
             asset: grepplus-x86_64-apple-darwin.tar.gz
+            optional: true
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             asset: grepplus-x86_64-unknown-linux-gnu.tar.gz
+            optional: false
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.optional }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -45,6 +49,7 @@ jobs:
 
   github-release:
     needs: build
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

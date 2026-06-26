@@ -27,12 +27,6 @@ brew trust mixpeal/grepplus
 brew install grepplus
 ```
 
-If `brew install` fails because `v0.1.0` is not tagged yet, use:
-
-```bash
-brew install --HEAD mixpeal/grepplus/grepplus
-```
-
 ### From source
 
 Requires **Rust 1.75+** (2021 edition).
@@ -47,12 +41,14 @@ Binaries: `grepplus` and `gp` (identical).
 
 Data lives under `~/.grepplus/`:
 
+
 | Path                      | Purpose                                                  |
 | ------------------------- | -------------------------------------------------------- |
 | `~/.grepplus/models/`     | Downloaded ONNX weights + `manifest.json` per install    |
 | `~/.grepplus/cache/`      | Per-repo search indexes (never inside your project tree) |
 | `~/.grepplus/config.toml` | User config (created on first edit)                      |
 | `.grepplus.toml`          | Optional repo-local config override                      |
+
 
 ---
 
@@ -89,13 +85,15 @@ Default path is `.`. With no pattern and no subcommand, grep+ prints a welcome b
 
 grep+ picks a **route** automatically from the query and repo state (index warm?, model installed?). Override with flags:
 
-| Flag                                      | Route                              | Needs model |
-| ----------------------------------------- | ---------------------------------- | ----------- |
-| *(default)*                               | auto (heuristic or learned router) | depends     |
-| `--semantic`                              | semantic vector search             | yes         |
-| `--hybrid`                                | lexical + semantic fusion          | yes         |
-| `--prefocus`                              | SketchBeam pre-focus → semantic    | yes         |
-| `--route <grep|semantic|hybrid|prefocus>` | explicit route                     | if not grep |
+
+| Flag           | Route                              | Needs model |
+| -------------- | ---------------------------------- | ----------- |
+| *(default)*    | auto (heuristic or learned router) | depends     |
+| `--semantic`   | semantic vector search             | yes         |
+| `--hybrid`     | lexical + semantic fusion          | yes         |
+| `--prefocus`   | SketchBeam pre-focus → semantic    | yes         |
+| `--route <grep | semantic                           | hybrid      |
+
 
 If semantic/hybrid is requested but no model is installed, grep+ errors with setup instructions. For auto route without `--semantic`/`--hybrid`, it **falls back to grep** when no model is available.
 
@@ -105,13 +103,16 @@ grepplus --route-debug "auth middleware" ./src   # show route + rationale
 
 ### Grep-compatible flags
 
+
 | Flag                    | Description                              |
 | ----------------------- | ---------------------------------------- |
 | `-i`, `--ignore-case`   | Case-insensitive                         |
 | `-F`, `--fixed-strings` | Literal substring (no regex)             |
 | `-n`, `--line-numbers`  | Print `file:line` prefixes (default: on) |
 
+
 ### Index & model flags
+
 
 | Flag             | Description                                                                |
 | ---------------- | -------------------------------------------------------------------------- |
@@ -120,6 +121,7 @@ grepplus --route-debug "auth middleware" ./src   # show route + rationale
 | `--ensure-index` | Force sketch/warm build before search (search already auto-creates sketch) |
 | `--warm-index`   | With `--ensure-index`, preheat full warm index when missing                |
 | `--local-traces` | Append route/latency trace for router training                             |
+
 
 ### Examples
 
@@ -138,6 +140,7 @@ Embedding models are **ONNX-only** (downloaded from Hugging Face). Each install 
 
 ### Recommended catalog
 
+
 | ID                      | ~Size   | Notes                                            |
 | ----------------------- | ------- | ------------------------------------------------ |
 | `qwen3-embedding-0.6b`  | 573 MB  | **Default** — Qwen3 0.6B ONNX INT8, MRL 32–1024d |
@@ -145,6 +148,7 @@ Embedding models are **ONNX-only** (downloaded from Hugging Face). Each install 
 | `nomic-embed-text-v1.5` | 105 MB+ | Multilingual; quants ~105–261 MB                 |
 | `e5-small-v2`           | 32 MB+  | Multilingual; quants ~32–63 MB                   |
 | `harrier-oss-v1-0.6b`   | 337 MB  | Code-oriented, 8k context                        |
+
 
 ### `models list`
 
@@ -181,6 +185,7 @@ grepplus models pull intfloat/e5-small-v2 --quant model_qint8_avx512_vnni
 grepplus models pull nixiesearch/all-MiniLM-L6-v2-onnx --set-active
 ```
 
+
 | Flag               | Description                                         |
 | ------------------ | --------------------------------------------------- |
 | `--revision <rev>` | HF revision (default: `main`)                       |
@@ -192,6 +197,7 @@ grepplus models pull nixiesearch/all-MiniLM-L6-v2-onnx --set-active
 | `--pin`            | Save entry to user catalog override                 |
 | `--set-active`     | Activate after install                              |
 
+
 Two-step flow for bare `org/repo` pulls: ONNX export mirror (if needed) → quantization picker.
 
 ### `models remove`
@@ -202,9 +208,11 @@ grepplus models remove e5-small-v2-model_o4
 
 ### Environment
 
+
 | Variable                          | Purpose                                           |
 | --------------------------------- | ------------------------------------------------- |
 | `HF_TOKEN` or `GREPPLUS_HF_TOKEN` | Hugging Face token for gated models / rate limits |
+
 
 ---
 
@@ -218,6 +226,7 @@ grepplus models remove e5-small-v2-model_o4
 
 For hybrid/semantic routes, grep+ needs a local picture of the repo — source split into **chunks**, a **MinHash sketch** for fast lexical shortlist (SketchBeam), and **quantized embedding vectors** per chunk (filled upfront on warm build, or via JIT). The cache tracks per-file **temperature** (HOT / COLD / COOL) and content hashes so JIT reheat stays correct when files change.
 
+
 | Artifact                      | Purpose                                                                      |
 | ----------------------------- | ---------------------------------------------------------------------------- |
 | **Chunk text**                | Source passages with file + line range (what results point to)               |
@@ -226,9 +235,11 @@ For hybrid/semantic routes, grep+ needs a local picture of the repo — source s
 | **Per-file metadata**         | Hashes, chunk lists, temperature for progressive embed                       |
 | **ANN graph** *(large repos)* | Approximate nearest-neighbor links when chunk count exceeds `ann_min_chunks` |
 
+
 The index is tied to a **model id** and **embedding dimension**. Change model or dim → rebuild or let JIT repopulate under the new settings.
 
 ### Automatic vs manual
+
 
 |                   | **Automatic (on search)**             | **Manual (`grepplus index`)**                     |
 | ----------------- | ------------------------------------- | ------------------------------------------------- |
@@ -237,14 +248,17 @@ The index is tied to a **model id** and **embedding dimension**. Change model or
 | **Embeddings**    | JIT per query + git to HOT over time  | `--ensure-model` warm build embeds everything now |
 | **Typical use**   | Just search; zero prep                | CI, agents, or `--watch` for a always-warm repo   |
 
+
 `--ensure-index` / `--warm-index` on search or `serve` are optional flags to force sketch or warm build *before* the query runs (useful in scripts). Normal interactive search already ensures a sketch shell internally.
 
 ### Sketch-only vs warm
 
-| Mode                                                             | What’s stored upfront                          |
-| ---------------------------------------------------------------- | ---------------------------------------------- |
-| **Sketch-only** (auto on first search, or `index --sketch-only`) | Chunks + MinHash — no embeddings (files COLD)  |
-| **Warm** (`index` without `--sketch-only`)                       | Full vectors for every chunk (all files HOT)   |
+
+| Mode                                                             | What’s stored upfront                         |
+| ---------------------------------------------------------------- | --------------------------------------------- |
+| **Sketch-only** (auto on first search, or `index --sketch-only`) | Chunks + MinHash — no embeddings (files COLD) |
+| **Warm** (`index` without `--sketch-only`)                       | Full vectors for every chunk (all files HOT)  |
+
 
 Warm indexes trade upfront time and disk for lower latency and higher first-query recall. Sketch + JIT is the default path: no full-repo embed required before the first question.
 
@@ -260,14 +274,16 @@ grepplus index ./src --purge                 # delete index for path
 grepplus index ./src --watch                 # keep index updated on file changes
 ```
 
-| Flag            | Description                                      |
-| --------------- | ------------------------------------------------ |
-| `--status`      | Print index manifest + HOT/COLD/COOL file counts |
-| `--sketch-only` | MinHash sketch without embedding all chunks      |
-| `--ensure-model`| Ensure embedding model before build              |
-| `--yes-download`| Non-interactive model download                   |
-| `--purge`       | Remove cached index                              |
-| `--watch`       | Watch filesystem and incrementally update          |
+
+| Flag             | Description                                      |
+| ---------------- | ------------------------------------------------ |
+| `--status`       | Print index manifest + HOT/COLD/COOL file counts |
+| `--sketch-only`  | MinHash sketch without embedding all chunks      |
+| `--ensure-model` | Ensure embedding model before build              |
+| `--yes-download` | Non-interactive model download                   |
+| `--purge`        | Remove cached index                              |
+| `--watch`        | Watch filesystem and incrementally update        |
+
 
 **Temperature (JIT):** files start COLD; hits promote toward HOT (embedded in cache). Reheat budget per query: `jit_embed_budget`, `jit_reheat_file_cap` in config.
 
@@ -282,10 +298,13 @@ grepplus serve
 grepplus serve --bind 127.0.0.1:9470 --ensure-index --token "$GREPPLUS_SERVE_TOKEN"
 ```
 
+
 | Endpoint  | Method | Description                                                        |
 | --------- | ------ | ------------------------------------------------------------------ |
 | `/health` | GET    | Version, model loaded, auth required                               |
 | `/search` | POST   | JSON body: `{ "query", "path", "route"? }` → `{ "route", "hits" }` |
+
+
 
 | Flag                 | Description                                          |
 | -------------------- | ---------------------------------------------------- |
@@ -296,6 +315,7 @@ grepplus serve --bind 127.0.0.1:9470 --ensure-index --token "$GREPPLUS_SERVE_TOK
 | `--token <secret>`   | Require `Authorization: Bearer <token>` on `/search` |
 | `--no-cors`          | Disable CORS                                         |
 | `--no-reload-config` | Disable hot-reload of `~/.grepplus/config.toml`      |
+
 
 `GREPPLUS_SERVE_TOKEN` is used when `--token` is omitted.
 
@@ -342,10 +362,12 @@ model_path = "router/model.json"
 backend = "parallel"   # parallel | ripgrep | auto
 ```
 
+
 | Variable               | Description                          |
 | ---------------------- | ------------------------------------ |
 | `GREPPLUS_CACHE_DIR`   | Override index cache root            |
 | `RUST_LOG` / `tracing` | Log level (default: `warn,ort=warn`) |
+
 
 ---
 
