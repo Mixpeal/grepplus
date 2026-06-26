@@ -143,6 +143,27 @@ impl SketchBeam {
 
 impl PreFocus for SketchBeam {
     fn sketch_beam(&self, query: &str, beam_width: usize, cap: usize) -> Result<Vec<ChunkRef>> {
+        self.sketch_beam_mode(query, beam_width, cap, "beam")
+    }
+}
+
+impl SketchBeam {
+    /// `mode`: `beam` (default), `minhash`, or `bm25`.
+    pub fn sketch_beam_mode(
+        &self,
+        query: &str,
+        beam_width: usize,
+        cap: usize,
+        mode: &str,
+    ) -> Result<Vec<ChunkRef>> {
+        if mode == "bm25" {
+            let bm25_hits = self.bm25.search(query, cap, None);
+            return Ok(bm25_hits
+                .into_iter()
+                .filter_map(|(id, _)| self.chunks.get(id as usize).map(|c| c.chunk_ref.clone()))
+                .collect());
+        }
+
         let qsig = self.minhash.signature(query);
 
         let mut file_scores: Vec<(PathBuf, f32)> = self
@@ -152,6 +173,18 @@ impl PreFocus for SketchBeam {
             .collect();
         file_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
         file_scores.truncate(beam_width);
+
+        if mode == "minhash" {
+            let candidate_files: std::collections::HashSet<_> =
+                file_scores.iter().map(|(p, _)| p.clone()).collect();
+            return Ok(self
+                .chunks
+                .iter()
+                .filter(|c| candidate_files.contains(&c.chunk_ref.file))
+                .take(cap)
+                .map(|c| c.chunk_ref.clone())
+                .collect());
+        }
 
         let candidate_files: std::collections::HashSet<_> =
             file_scores.iter().map(|(p, _)| p.clone()).collect();

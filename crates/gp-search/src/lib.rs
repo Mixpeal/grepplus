@@ -4,7 +4,7 @@ use gp_core::traits::{Embedder, LaserFocus};
 use gp_core::types::{ChunkRef, RetrievalSource, Route, ScoredChunk};
 use gp_fusion::RrfFusion;
 use gp_grep::{exact_grep_scored, resolve_exact_backend, ParallelGrep};
-use gp_index::{candidate_beam, ensure_sketch_shell, load_projection_backend, Index};
+use gp_index::{candidate_beam_mode, ensure_sketch_shell, vector_codec, Index};
 use gp_laser::Laser;
 use gp_sketch::SketchBeam;
 use std::collections::HashSet;
@@ -13,7 +13,6 @@ use std::path::{Path, PathBuf};
 pub struct IndexBuildOptions {
     pub model_id: String,
     pub dim: usize,
-    pub projection: String,
     pub sketch_only: bool,
 }
 
@@ -24,7 +23,7 @@ pub fn build_index(
     opts: &IndexBuildOptions,
 ) -> Result<Index> {
     if opts.sketch_only {
-        return Index::build_sketch_only(repo, &opts.model_id, opts.dim, &opts.projection);
+        return Index::build_sketch_only(repo, &opts.model_id, opts.dim);
     }
 
     let sketch = SketchBeam::build(vec![repo.to_path_buf()])?;
@@ -43,7 +42,6 @@ pub fn build_index(
         repo,
         &opts.model_id,
         opts.dim,
-        &opts.projection,
         vectors.as_deref(),
     )
 }
@@ -54,7 +52,6 @@ pub struct SearchOptions {
     pub sketch_beam: usize,
     pub top_k: usize,
     pub dim: usize,
-    pub projection: String,
     pub jit_enabled: bool,
     pub jit_embed_budget: usize,
     pub jit_reheat_file_cap: usize,
@@ -63,6 +60,10 @@ pub struct SearchOptions {
     pub model_id: String,
     /// `parallel`, `ripgrep`, or `auto` — see `GrepCfg`.
     pub grep_backend: String,
+    /// Sketch mode: `beam`, `minhash`, or `bm25`.
+    pub sketch_mode: String,
+    /// Optional JIT embed byte accounting (eval harness).
+    pub embed_stats: Option<gp_core::embed_stats::EmbedStatsCell>,
 }
 
 impl SearchOptions {
@@ -73,7 +74,6 @@ impl SearchOptions {
             sketch_beam: cfg.search.sketch_beam_width,
             top_k: 20,
             dim: cfg.embedder.dim,
-            projection: cfg.index.projection.clone(),
             jit_enabled: cfg.search.jit_enabled,
             jit_embed_budget: cfg.search.jit_embed_budget,
             jit_reheat_file_cap: cfg.search.jit_reheat_file_cap,
@@ -81,6 +81,8 @@ impl SearchOptions {
             jit_cold_first_embed_budget: cfg.search.jit_cold_first_embed_budget,
             model_id: cfg.embedder.active.clone(),
             grep_backend: cfg.grep.backend.clone(),
+            sketch_mode: cfg.index.sketch.clone(),
+            embed_stats: None,
         }
     }
 }
@@ -190,7 +192,8 @@ fn gather_candidates(
         .into_iter()
         .map(|s| s.chunk)
         .collect();
-    let sketch = candidate_beam(repo, query, opts.sketch_beam, opts.laser_cap).unwrap_or_default();
+    let sketch = candidate_beam_mode(repo, query, opts.sketch_beam, opts.laser_cap, &opts.sketch_mode)
+        .unwrap_or_default();
     merge_candidates(&merge_candidates(&exact, &laser), &sketch)
 }
 
@@ -201,7 +204,7 @@ fn semantic_scored(
     embedder: &dyn Embedder,
     opts: &SearchOptions,
 ) -> Result<Vec<ScoredChunk>> {
-    ensure_sketch_shell(repo, &opts.model_id, opts.dim, &opts.projection)?;
+    ensure_sketch_shell(repo, &opts.model_id, opts.dim)?;
     let index = Index::open(repo)?;
     if index.manifest.dim != opts.dim {
         return Err(GpError::Index(format!(
@@ -212,13 +215,13 @@ fn semantic_scored(
 
     let candidates = gather_candidates(query, paths, repo, opts);
     let query_vec = embedder.embed_query(query)?;
-    let backend = load_projection_backend(&index.manifest.projection, opts.dim, &index.root)?;
+    let codec = vector_codec(opts.dim);
 
     let hits = if opts.jit_enabled && index.chunks.is_empty() {
         let mut embed_fn = |texts: &[String]| embedder.embed(texts);
         index.jit_semantic_search(
             &query_vec,
-            backend.as_ref(),
+            &codec,
             &candidates,
             &mut embed_fn,
             opts.jit_embed_budget,
@@ -226,11 +229,13 @@ fn semantic_scored(
             opts.jit_cold_first_file_cap,
             opts.jit_cold_first_embed_budget,
             opts.top_k,
+            opts.dim,
+            opts.embed_stats.as_ref(),
         )?
     } else {
         index.search_semantic_filtered(
             &query_vec,
-            backend.as_ref(),
+            &codec,
             Some(&candidates),
             opts.top_k,
         )
@@ -241,7 +246,7 @@ fn semantic_scored(
         .map(|(c, score)| ScoredChunk {
             chunk: c.chunk_ref,
             score,
-            source: RetrievalSource::Pq4,
+            source: RetrievalSource::Vector,
             preview: Some(c.text.chars().take(160).collect()),
         })
         .collect())
@@ -253,23 +258,23 @@ fn prefocus_search(
     embedder: Option<&dyn Embedder>,
     opts: &SearchOptions,
 ) -> Result<Vec<ScoredChunk>> {
-    let candidates = candidate_beam(repo, query, opts.sketch_beam, opts.laser_cap)?;
+    let candidates = candidate_beam_mode(repo, query, opts.sketch_beam, opts.laser_cap, &opts.sketch_mode)?;
 
     if candidates.is_empty() {
         return Ok(vec![]);
     }
 
     if let Some(emb) = embedder {
-        ensure_sketch_shell(repo, &opts.model_id, opts.dim, &opts.projection)?;
+        ensure_sketch_shell(repo, &opts.model_id, opts.dim)?;
         let index = Index::open(repo)?;
         let query_vec = emb.embed_query(query)?;
-        let backend = load_projection_backend(&index.manifest.projection, opts.dim, &index.root)?;
+        let codec = vector_codec(opts.dim);
 
         let hits = if opts.jit_enabled && index.chunks.is_empty() {
             let mut embed_fn = |texts: &[String]| emb.embed(texts);
             index.jit_semantic_search(
                 &query_vec,
-                backend.as_ref(),
+                &codec,
                 &candidates,
                 &mut embed_fn,
                 opts.jit_embed_budget,
@@ -277,11 +282,13 @@ fn prefocus_search(
                 opts.jit_cold_first_file_cap,
                 opts.jit_cold_first_embed_budget,
                 opts.top_k,
+                opts.dim,
+                opts.embed_stats.as_ref(),
             )?
         } else {
             index.search_semantic_filtered(
                 &query_vec,
-                backend.as_ref(),
+                &codec,
                 Some(&candidates),
                 opts.top_k,
             )
@@ -374,7 +381,6 @@ mod tests {
             sketch_beam: 5,
             top_k: 5,
             dim: 8,
-            projection: "baseline".into(),
             jit_enabled: true,
             jit_embed_budget: 64,
             jit_reheat_file_cap: 16,
@@ -382,6 +388,8 @@ mod tests {
             jit_cold_first_embed_budget: 18,
             model_id: "mock".into(),
             grep_backend: "parallel".into(),
+            sketch_mode: "beam".into(),
+            embed_stats: None,
         };
         let hits = hybrid_search(
             "handleSessionRefresh",
@@ -408,7 +416,6 @@ mod tests {
             sketch_beam: 5,
             top_k: 5,
             dim: 8,
-            projection: "baseline".into(),
             jit_enabled: false,
             jit_embed_budget: 64,
             jit_reheat_file_cap: 16,
@@ -416,6 +423,8 @@ mod tests {
             jit_cold_first_embed_budget: 18,
             model_id: "mock".into(),
             grep_backend: "parallel".into(),
+            sketch_mode: "beam".into(),
+            embed_stats: None,
         };
         let hits = hybrid_search(
             "handleSessionRefresh",
@@ -442,7 +451,6 @@ mod tests {
         let opts = IndexBuildOptions {
             model_id: "mock".into(),
             dim: 8,
-            projection: "baseline".into(),
             sketch_only: false,
         };
         build_index(dir.path(), Some(&emb), &opts).unwrap();
@@ -453,7 +461,6 @@ mod tests {
             sketch_beam: 5,
             top_k: 5,
             dim: 8,
-            projection: "baseline".into(),
             jit_enabled: true,
             jit_embed_budget: 64,
             jit_reheat_file_cap: 16,
@@ -461,6 +468,8 @@ mod tests {
             jit_cold_first_embed_budget: 18,
             model_id: "mock".into(),
             grep_backend: "parallel".into(),
+            sketch_mode: "beam".into(),
+            embed_stats: None,
         };
         let hits = hybrid_search(
             "handleSessionRefresh",

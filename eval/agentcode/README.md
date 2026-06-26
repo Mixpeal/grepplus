@@ -22,5 +22,4 @@ Seed query set for grep+ hybrid search evaluation.
 ```bash
 grepplus eval run ./eval/agentcode/repos/mini --suite ./eval/agentcode/queries-100.jsonl
 grepplus eval compare ./eval/agentcode/repos/mini --modes laser,vector,hybrid,jit --ensure-index
-grepplus research pq4 ablate ./eval/agentcode/repos/mini --suite ./eval/agentcode/queries-100.jsonl
 ```

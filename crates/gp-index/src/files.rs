@@ -2,7 +2,8 @@ use crate::store::{path_hash, FileMeta, StoredChunkRecord};
 use crate::temperature::{resolve_temperature, FileTemperature, TemperatureStats};
 use crate::StoredChunk;
 use gp_core::error::{GpError, Result};
-use gp_core::traits::{ProjectionBackend, Q4Code};
+use crate::vectors::VectorCodec;
+use gp_core::traits::Q4Code;
 use gp_core::types::ChunkRef;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -148,7 +149,7 @@ pub fn jit_semantic_search(
     index_root: &Path,
     repo: &Path,
     query_vec: &[f32],
-    backend: &dyn ProjectionBackend,
+    codec: &VectorCodec,
     candidates: &[ChunkRef],
     embed_fn: &mut dyn FnMut(&[String]) -> Result<Vec<Vec<f32>>>,
     embed_budget: usize,
@@ -157,6 +158,8 @@ pub fn jit_semantic_search(
     cold_first_embed_budget: usize,
     index_mostly_cold: bool,
     top_k: usize,
+    embed_dim: usize,
+    embed_stats: Option<&gp_core::embed_stats::EmbedStatsCell>,
 ) -> Result<Vec<(StoredChunk, f32)>> {
     if candidates.is_empty() {
         return Ok(vec![]);
@@ -191,7 +194,7 @@ pub fn jit_semantic_search(
             if let Some(chunks) = load_hot_chunks(index_root, repo, rel)? {
                 for chunk in chunks {
                     if matches_candidates(&chunk.chunk_ref, &cand_set) {
-                        let score = backend.score(query_vec, &chunk.code);
+                        let score = codec.score(query_vec, &chunk.code);
                         scored.push((chunk, score));
                     }
                 }
@@ -257,11 +260,14 @@ pub fn jit_semantic_search(
     }
 
     let vectors = embed_fn(&batch_texts)?;
+    if let Some(stats) = embed_stats {
+        stats.record_chunks(batch_texts.len(), embed_dim);
+    }
 
     for plan in plans {
         let n = plan.records.len();
         let slice = &vectors[plan.text_start..plan.text_start + n];
-        let codes: Vec<Q4Code> = slice.iter().map(|v| backend.project(v)).collect();
+        let codes: Vec<Q4Code> = slice.iter().map(|v| codec.project(v)).collect();
 
         let dir = file_dir(index_root, &plan.rel);
         std::fs::create_dir_all(&dir)?;
@@ -284,7 +290,7 @@ pub fn jit_semantic_search(
                 code,
             };
             if matches_candidates(&chunk.chunk_ref, &cand_set) {
-                let score = backend.score(query_vec, &chunk.code);
+                let score = codec.score(query_vec, &chunk.code);
                 scored.push((chunk, score));
             }
         }

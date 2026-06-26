@@ -10,7 +10,7 @@ gp-core = { path = "../gp-core" }
 gp-embed = { path = "../gp-embed" }
 gp-eval = { path = "../gp-eval" }
 gp-index = { path = "../gp-index" }
-gp-pq4 = { path = "../gp-pq4" }
+gp-router = { path = "../gp-router" }
 gp-search = { path = "../gp-search" }
 gp-sketch = { path = "../gp-sketch" }
 serde = { workspace = true }

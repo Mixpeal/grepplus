@@ -1,9 +1,14 @@
 use gp_core::config::Config;
+use gp_core::embed_stats::EmbedStatsCell;
 use gp_core::error::Result;
-use gp_core::traits::{CategoryMetrics, EvalHarness, EvalMetrics, EvalMode, GrepEngine, GrepOptions, LaserFocus};
-use gp_core::types::{ChunkRef, Route};
+use gp_core::traits::{
+    CategoryMetrics, EvalHarness, EvalMetrics, EvalMode, GrepEngine, GrepOptions, LaserFocus,
+    QueryEmbedStats, Router,
+};
+use gp_core::types::{ChunkRef, RepoMeta, Route};
 use gp_embed::{resolve_embedder, EnsureOptions};
 use gp_grep::{ParallelGrep, RipgrepEngine, UnixGrepEngine};
+use gp_router::{resolve_router, HeuristicRouter, FeatureRouter};
 use gp_search::{build_index, hybrid_search, IndexBuildOptions, SearchOptions};
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -39,6 +44,23 @@ pub fn load_queries(path: &std::path::Path) -> Result<Vec<EvalQuery>> {
     Ok(queries)
 }
 
+#[derive(Debug, Clone)]
+pub struct HarnessOverrides {
+    pub jit_embed_budget: Option<usize>,
+    pub jit_reheat_file_cap: Option<usize>,
+    pub router_mode: Option<String>,
+}
+
+impl Default for HarnessOverrides {
+    fn default() -> Self {
+        Self {
+            jit_embed_budget: None,
+            jit_reheat_file_cap: None,
+            router_mode: None,
+        }
+    }
+}
+
 pub struct AgentCodeHarness {
     pub corpus: PathBuf,
     pub queries_path: PathBuf,
@@ -47,6 +69,9 @@ pub struct AgentCodeHarness {
     pub warm_index: bool,
     pub isolate_modes: bool,
     pub yes_download: bool,
+    pub filter_category: Option<String>,
+    pub filter_laser_miss: bool,
+    pub overrides: HarnessOverrides,
 }
 
 impl AgentCodeHarness {
@@ -59,6 +84,9 @@ impl AgentCodeHarness {
             warm_index: false,
             isolate_modes: false,
             yes_download: false,
+            filter_category: None,
+            filter_laser_miss: false,
+            overrides: HarnessOverrides::default(),
         }
     }
 
@@ -87,8 +115,38 @@ impl AgentCodeHarness {
         self
     }
 
+    pub fn filter_category(mut self, cat: Option<String>) -> Self {
+        self.filter_category = cat;
+        self
+    }
+
+    pub fn filter_laser_miss(mut self, yes: bool) -> Self {
+        self.filter_laser_miss = yes;
+        self
+    }
+
+    pub fn overrides(mut self, o: HarnessOverrides) -> Self {
+        self.overrides = o;
+        self
+    }
+
     fn load_queries(&self) -> Result<Vec<EvalQuery>> {
         load_queries(&self.queries_path)
+    }
+
+    fn filter_queries(&self, queries: Vec<EvalQuery>) -> Result<Vec<EvalQuery>> {
+        let mut out = queries;
+        if let Some(ref cat) = self.filter_category {
+            out.retain(|q| q.category == *cat);
+        }
+        if self.filter_laser_miss {
+            out.retain(|q| {
+                self.laser_search(&q.query)
+                    .map(|r| recall_at_k(&r, &q.oracles, 10) == 0.0)
+                    .unwrap_or(false)
+            });
+        }
+        Ok(out)
     }
 
     fn unix_grep_search(&self, query: &str) -> Result<Vec<ChunkRef>> {
@@ -138,7 +196,6 @@ impl AgentCodeHarness {
                     let opts = IndexBuildOptions {
                         model_id: cfg.embedder.active.clone(),
                         dim: cfg.embedder.dim,
-                        projection: cfg.index.projection.clone(),
                         sketch_only: false,
                     };
                     build_index(&self.corpus, embedder.as_deref(), &opts)?;
@@ -147,7 +204,6 @@ impl AgentCodeHarness {
                 let opts = IndexBuildOptions {
                     model_id: cfg.embedder.active.clone(),
                     dim: cfg.embedder.dim,
-                    projection: cfg.index.projection.clone(),
                     sketch_only: true,
                 };
                 build_index(&self.corpus, embedder.as_deref(), &opts)?;
@@ -161,16 +217,65 @@ impl AgentCodeHarness {
         Ok(laser.focus(query, 100)?)
     }
 
+    fn repo_meta(&self, embedder: Option<&dyn gp_core::traits::Embedder>) -> RepoMeta {
+        let index_warm = self.warm_index || gp_index::Index::exists(&self.corpus);
+        RepoMeta {
+            has_model: embedder.is_some(),
+            index_warm,
+            ..Default::default()
+        }
+    }
+
+    fn route_for_mode(&self, mode: EvalMode, query: &str, meta: &RepoMeta) -> Route {
+        match mode {
+            EvalMode::Grep | EvalMode::Ripgrep | EvalMode::Laser | EvalMode::FixedGrep => {
+                Route::Grep
+            }
+            EvalMode::Vector | EvalMode::Jit => Route::Semantic,
+            EvalMode::Hybrid | EvalMode::FixedHybrid => Route::Hybrid,
+            EvalMode::Prefocus => Route::Prefocus,
+            EvalMode::RouterHeuristic => HeuristicRouter.route(query, meta).route,
+            EvalMode::RouterFeature => FeatureRouter.route(query, meta).route,
+            EvalMode::RouterLearned => {
+                if let Some(cfg) = &self.config {
+                    if let Ok(router) = resolve_router(cfg) {
+                        return router.route(query, meta).route;
+                    }
+                }
+                HeuristicRouter.route(query, meta).route
+            }
+        }
+    }
+
+    fn oracle_route(&self, query: &EvalQuery) -> Route {
+        if self
+            .laser_search(&query.query)
+            .map(|r| recall_at_k(&r, &query.oracles, 10) > 0.0)
+            .unwrap_or(false)
+        {
+            return Route::Grep;
+        }
+        if self
+            .integrated_search(&query.query, EvalMode::Hybrid, None, &EmbedStatsCell::new())
+            .map(|r| recall_at_k(&r, &query.oracles, 10) > 0.0)
+            .unwrap_or(false)
+        {
+            return Route::Hybrid;
+        }
+        Route::Prefocus
+    }
+
     fn integrated_search(
         &self,
         query: &str,
         mode: EvalMode,
         embedder: Option<&dyn gp_core::traits::Embedder>,
+        embed_stats: &EmbedStatsCell,
     ) -> Result<Vec<ChunkRef>> {
         if matches!(mode, EvalMode::Ripgrep) {
             return self.ripgrep_search(query);
         }
-        if matches!(mode, EvalMode::Grep) {
+        if matches!(mode, EvalMode::Grep | EvalMode::FixedGrep) {
             return self.unix_grep_search(query);
         }
 
@@ -179,28 +284,37 @@ impl AgentCodeHarness {
             None => {
                 return match mode {
                     EvalMode::Laser => self.laser_search(query),
-                    EvalMode::Grep | EvalMode::Ripgrep => unreachable!(),
-                    EvalMode::Vector | EvalMode::Hybrid | EvalMode::Jit => {
-                        self.parallel_grep_search(query)
-                    }
+                    EvalMode::Grep | EvalMode::Ripgrep | EvalMode::FixedGrep => unreachable!(),
+                    EvalMode::Vector
+                    | EvalMode::Hybrid
+                    | EvalMode::Jit
+                    | EvalMode::Prefocus
+                    | EvalMode::FixedHybrid
+                    | EvalMode::RouterHeuristic
+                    | EvalMode::RouterFeature
+                    | EvalMode::RouterLearned => self.parallel_grep_search(query),
                 };
             }
         };
 
-        let route = match mode {
-            EvalMode::Grep | EvalMode::Ripgrep => unreachable!(),
-            EvalMode::Laser => Route::Grep,
-            EvalMode::Vector => Route::Semantic,
-            EvalMode::Hybrid => Route::Hybrid,
-            EvalMode::Jit => Route::Semantic,
-        };
+        let meta = self.repo_meta(embedder);
+        let route = self.route_for_mode(mode, query, &meta);
         let mut search_opts = SearchOptions::from_config(cfg, route);
+        if let Some(b) = self.overrides.jit_embed_budget {
+            search_opts.jit_embed_budget = b;
+        }
+        if let Some(c) = self.overrides.jit_reheat_file_cap {
+            search_opts.jit_reheat_file_cap = c;
+        }
+        search_opts.embed_stats = Some(embed_stats.clone());
+
         if self.warm_index && mode != EvalMode::Jit {
             search_opts.jit_enabled = false;
         }
         if mode == EvalMode::Jit {
             search_opts.jit_enabled = true;
         }
+
         let scored = hybrid_search(
             query,
             &[self.corpus.clone()],
@@ -215,29 +329,76 @@ impl AgentCodeHarness {
         query: &EvalQuery,
         mode: EvalMode,
         embedder: Option<&dyn gp_core::traits::Embedder>,
-    ) -> Result<(Vec<ChunkRef>, f32)> {
+        embed_stats: &EmbedStatsCell,
+    ) -> Result<(Vec<ChunkRef>, f32, Option<Route>)> {
         let start = Instant::now();
-        let results = self.integrated_search(&query.query, mode, embedder)?;
+        embed_stats.reset();
+        let results = self.integrated_search(&query.query, mode, embedder, embed_stats)?;
         let ms = start.elapsed().as_secs_f32() * 1000.0;
-        Ok((results, ms))
+        let chosen_route = if is_router_mode(mode) {
+            Some(self.route_for_mode(mode, &query.query, &self.repo_meta(embedder)))
+        } else {
+            None
+        };
+        Ok((results, ms, chosen_route))
     }
+    /// Evaluate a single query (for trace generation / debugging).
+    pub fn eval_single_query(
+        &self,
+        query: &EvalQuery,
+        mode: EvalMode,
+    ) -> Result<(f32, f32)> {
+        let embedder = self.ensure_corpus_index()?;
+        let stats = EmbedStatsCell::new();
+        let (results, _latency, _) =
+            self.run_query(query, mode, embedder.as_deref(), &stats)?;
+        let recall = recall_at_k(&results, &query.oracles, 10);
+        let mrr = mrr(&results, &query.oracles);
+        Ok((recall, mrr))
+    }
+}
+
+fn is_router_mode(mode: EvalMode) -> bool {
+    matches!(
+        mode,
+        EvalMode::RouterHeuristic
+            | EvalMode::RouterFeature
+            | EvalMode::RouterLearned
+            | EvalMode::FixedGrep
+            | EvalMode::FixedHybrid
+    )
 }
 
 impl EvalHarness for AgentCodeHarness {
     fn run(&self, mode: EvalMode, _query_set: &str) -> Result<EvalMetrics> {
-        let queries = self.load_queries()?;
+        let queries = self.filter_queries(self.load_queries()?)?;
         let embedder = self.ensure_corpus_index()?;
         let mut per_category: BTreeMap<String, CategoryMetrics> = BTreeMap::new();
         let mut total_recall = 0.0f32;
         let mut total_mrr = 0.0f32;
-        let mut total_success = 0.0f32;
+        let mut total_hit = 0.0f32;
         let mut total_latency = 0.0f32;
         let mut cold_latency = 0.0f32;
         let mut warm_latency_sum = 0.0f32;
         let mut warm_count = 0usize;
+        let mut cumulative_embed_bytes = 0u64;
+        let mut per_query_stats: Vec<QueryEmbedStats> = Vec::new();
+        let mut route_hits = 0usize;
+        let mut route_total = 0usize;
+        let session_stats = EmbedStatsCell::new();
 
         for (i, q) in queries.iter().enumerate() {
-            let (results, latency) = self.run_query(q, mode, embedder.as_deref())?;
+            let query_stats = EmbedStatsCell::new();
+            let (results, latency, chosen_route) =
+                self.run_query(q, mode, embedder.as_deref(), &query_stats)?;
+            let snap = query_stats.snapshot();
+            cumulative_embed_bytes += snap.bytes_embedded as u64;
+            per_query_stats.push(QueryEmbedStats {
+                query_id: q.id.clone(),
+                chunks_embedded: snap.chunks_embedded,
+                bytes_embedded: snap.bytes_embedded,
+            });
+
             if i == 0 {
                 cold_latency = latency;
             } else {
@@ -248,17 +409,27 @@ impl EvalHarness for AgentCodeHarness {
 
             let recall = recall_at_k(&results, &q.oracles, 10);
             let mrr = mrr(&results, &q.oracles);
-            let success = if recall > 0.0 { 1.0 } else { 0.0 };
+            let hit = if recall > 0.0 { 1.0 } else { 0.0 };
 
             total_recall += recall;
             total_mrr += mrr;
-            total_success += success;
+            total_hit += hit;
+
+            if let Some(chosen) = chosen_route {
+                let oracle = self.oracle_route(q);
+                route_total += 1;
+                if routes_match(chosen, oracle) {
+                    route_hits += 1;
+                }
+            }
 
             let cat = per_category.entry(q.category.clone()).or_default();
             cat.n += 1;
             cat.recall_at_10 += recall;
             cat.mrr += mrr;
         }
+
+        let _ = session_stats;
 
         let n = queries.len().max(1) as f32;
         for cat in per_category.values_mut() {
@@ -270,7 +441,7 @@ impl EvalHarness for AgentCodeHarness {
         Ok(EvalMetrics {
             recall_at_10: total_recall / n,
             mrr: total_mrr / n,
-            success_rate: total_success / n,
+            hit_rate: total_hit / n,
             mean_latency_ms: total_latency / n,
             cold_latency_ms: cold_latency,
             warm_latency_ms: if warm_count > 0 {
@@ -278,9 +449,23 @@ impl EvalHarness for AgentCodeHarness {
             } else {
                 0.0
             },
+            cumulative_embed_bytes,
+            per_query: per_query_stats,
             per_category,
+            route_accuracy: if route_total > 0 {
+                Some(route_hits as f32 / route_total as f32)
+            } else {
+                None
+            },
         })
     }
+}
+
+fn routes_match(a: Route, b: Route) -> bool {
+    a == b
+        || (matches!(a, Route::Grep) && matches!(b, Route::Grep))
+        || (matches!(a, Route::Semantic | Route::Hybrid | Route::Prefocus)
+            && matches!(b, Route::Semantic | Route::Hybrid | Route::Prefocus))
 }
 
 pub fn eval_mode_label(mode: EvalMode) -> &'static str {
@@ -291,6 +476,12 @@ pub fn eval_mode_label(mode: EvalMode) -> &'static str {
         EvalMode::Vector => "vector",
         EvalMode::Hybrid => "hybrid",
         EvalMode::Jit => "jit",
+        EvalMode::Prefocus => "prefocus",
+        EvalMode::FixedGrep => "fixed-grep",
+        EvalMode::FixedHybrid => "fixed-hybrid",
+        EvalMode::RouterHeuristic => "router-heuristic",
+        EvalMode::RouterFeature => "router-feature",
+        EvalMode::RouterLearned => "router-learned",
     }
 }
 
@@ -326,13 +517,19 @@ pub fn results_to_json(results: &BTreeMap<String, EvalMetrics>) -> Result<String
 /// Markdown-friendly table for benchmark reports.
 pub fn format_report(results: &BTreeMap<String, EvalMetrics>) -> String {
     let mut lines = vec![
-        "| mode | recall@10 | mrr | cold_ms | warm_ms | mean_ms |".to_string(),
-        "|------|-----------|-----|---------|---------|---------|".to_string(),
+        "| mode | recall@10 | mrr | hit_rate | cold_ms | warm_ms | mean_ms | embed_mb |".to_string(),
+        "|------|-----------|-----|----------|---------|---------|---------|----------|".to_string(),
     ];
     for (mode, m) in results {
         lines.push(format!(
-            "| {mode} | {:.3} | {:.3} | {:.1} | {:.1} | {:.1} |",
-            m.recall_at_10, m.mrr, m.cold_latency_ms, m.warm_latency_ms, m.mean_latency_ms
+            "| {mode} | {:.3} | {:.3} | {:.3} | {:.1} | {:.1} | {:.1} | {:.2} |",
+            m.recall_at_10,
+            m.mrr,
+            m.hit_rate,
+            m.cold_latency_ms,
+            m.warm_latency_ms,
+            m.mean_latency_ms,
+            m.cumulative_embed_bytes as f64 / 1_048_576.0
         ));
     }
     lines.join("\n")

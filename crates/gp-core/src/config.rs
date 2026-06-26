@@ -40,7 +40,6 @@ impl Default for EmbedderCfg {
 #[serde(default)]
 pub struct IndexCfg {
     pub auto_ensure: bool,
-    pub projection: String,
     pub sketch: String,
     pub exclude: Vec<String>,
     /// Drop cached indexes not accessed within this many days (stored under ~/.grepplus/cache/).
@@ -55,7 +54,6 @@ impl Default for IndexCfg {
     fn default() -> Self {
         Self {
             auto_ensure: false,
-            projection: "pq4".into(),
             sketch: "beam".into(),
             exclude: vec![
                 "node_modules".into(),
@@ -103,7 +101,7 @@ pub struct SearchCfg {
     pub jit_cold_first_embed_budget: usize,
     /// Use temperature-aware JIT search (skip HOT, reheat COLD).
     pub jit_enabled: bool,
-    /// Use ANN over PQ4 when index has ann/ graph built.
+    /// Use ANN graph when index has ann/ built.
     pub ann_enabled: bool,
 }
 

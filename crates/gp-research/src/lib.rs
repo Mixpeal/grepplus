@@ -1,5 +1,3 @@
-mod ablate;
-mod triplets;
+mod router_traces;
 
-pub use ablate::{ablate_projections, format_ablation};
-pub use triplets::train_pq4;
+pub use router_traces::generate_router_traces;

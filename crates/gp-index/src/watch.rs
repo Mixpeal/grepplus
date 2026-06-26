@@ -80,7 +80,7 @@ mod tests {
             std::fs::create_dir_all(file.parent().expect("parent")).expect("mkdir");
             std::fs::write(&file, "fn a() {}").expect("write");
             let idx =
-                crate::Index::build_sketch_only(repo.path(), "t", 8, "baseline").expect("build");
+                crate::Index::build_sketch_only(repo.path(), "t", 8).expect("build");
             let dir = file_dir(&idx.root, "src/a.rs");
             let mut meta = read_file_meta(&dir).expect("meta");
             meta.temperature = FileTemperature::Hot.as_str().into();

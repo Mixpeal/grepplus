@@ -74,6 +74,7 @@ pub fn train_from_traces(traces: &[crate::trace::RouteTrace]) -> Result<LearnedR
     let lr = 0.01f32;
 
     for t in traces {
+        let weight = if t.success == Some(false) { 0.25 } else { 1.0 };
         let route = label_to_route(&t.route);
         let meta = RepoMeta {
             has_model: true,
@@ -91,9 +92,9 @@ pub fn train_from_traces(traces: &[crate::trace::RouteTrace]) -> Result<LearnedR
             }
             let pred = 1.0 / (1.0 + (-score).exp());
             let err = pred - y;
-            bias[i] -= lr * err;
+            bias[i] -= lr * err * weight;
             for (j, wj) in w.iter_mut().enumerate() {
-                *wj -= lr * err * x[j];
+                *wj -= lr * err * x[j] * weight;
             }
         }
     }

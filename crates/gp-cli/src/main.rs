@@ -8,7 +8,9 @@ use gp_embed::{
     ensure_model, interactive_pick, is_installed, print_models_list, pull_model, remove_model, require_embedder,
     set_active_model, default_pull_opts, EnsureOptions,
 };
-use gp_eval::{compare_modes, format_report, results_to_json, AgentCodeHarness};
+use gp_eval::{
+    compare_modes, format_report, results_to_json, AgentCodeHarness, HarnessOverrides,
+};
 use gp_grep::resolve_cli_backend;
 use gp_index::{purge_expired, Index};
 use gp_router::{append_trace, resolve_router, route_label, RouteTrace};
@@ -89,15 +91,13 @@ enum Commands {
         #[command(subcommand)]
         cmd: ModelsCmd,
     },
-    /// Build and manage the search index (sketch, warm PQ4, watch)
+    /// Build and manage the search index (sketch, warm embed, watch)
     Index {
         paths: Vec<PathBuf>,
         #[arg(long)]
         status: bool,
         #[arg(long)]
         sketch_only: bool,
-        #[arg(long)]
-        projection: Option<String>,
         #[arg(long)]
         yes_download: bool,
         #[arg(long)]
@@ -127,7 +127,7 @@ enum Commands {
         #[arg(long)]
         no_reload_config: bool,
     },
-    /// Train PQ4 projection and run ablation studies
+    /// Research utilities (router traces, etc.)
     #[command(hide = true)]
     Research {
         #[command(subcommand)]
@@ -178,27 +178,20 @@ enum ModelsCmd {
 
 #[derive(Subcommand)]
 enum ResearchCmd {
-    Pq4 {
+    Router {
         #[command(subcommand)]
-        cmd: Pq4Cmd,
+        cmd: ResearchRouterCmd,
     },
 }
 
 #[derive(Subcommand)]
-enum Pq4Cmd {
-    Train {
+enum ResearchRouterCmd {
+    Traces {
         corpus: PathBuf,
         #[arg(long, default_value = "eval/agentcode/queries.jsonl")]
         suite: PathBuf,
         #[arg(long)]
-        yes_download: bool,
-    },
-    Ablate {
-        corpus: PathBuf,
-        #[arg(long, default_value = "eval/agentcode/queries.jsonl")]
-        suite: PathBuf,
-        #[arg(long, default_value = "baseline,pca,pq4")]
-        projections: String,
+        output: Option<PathBuf>,
         #[arg(long)]
         yes_download: bool,
     },
@@ -230,6 +223,14 @@ enum EvalCmd {
         isolate_modes: bool,
         #[arg(long)]
         yes_download: bool,
+        #[arg(long)]
+        filter_category: Option<String>,
+        #[arg(long)]
+        filter_laser_miss: bool,
+        #[arg(long)]
+        jit_embed_budget: Option<usize>,
+        #[arg(long)]
+        jit_reheat_file_cap: Option<usize>,
     },
     Compare {
         corpus: PathBuf,
@@ -247,6 +248,14 @@ enum EvalCmd {
         yes_download: bool,
         #[arg(long, value_enum, default_value_t = EvalFormat::Table)]
         format: EvalFormat,
+        #[arg(long)]
+        filter_category: Option<String>,
+        #[arg(long)]
+        filter_laser_miss: bool,
+        #[arg(long)]
+        jit_embed_budget: Option<usize>,
+        #[arg(long)]
+        jit_reheat_file_cap: Option<usize>,
     },
     Report {
         corpus: PathBuf,
@@ -260,6 +269,31 @@ enum EvalCmd {
         warm_index: bool,
         #[arg(long)]
         isolate_modes: bool,
+        #[arg(long)]
+        yes_download: bool,
+        #[arg(long, value_enum, default_value_t = EvalFormat::Table)]
+        format: EvalFormat,
+        #[arg(long)]
+        filter_category: Option<String>,
+        #[arg(long)]
+        filter_laser_miss: bool,
+        #[arg(long)]
+        jit_embed_budget: Option<usize>,
+        #[arg(long)]
+        jit_reheat_file_cap: Option<usize>,
+    },
+    Agent {
+        corpus: PathBuf,
+        #[arg(long, default_value = "eval/agentcode/queries.jsonl")]
+        suite: PathBuf,
+        #[arg(long, default_value = "grep,hybrid")]
+        retrievers: String,
+        #[arg(long, default_value = "127.0.0.1:9470")]
+        serve_addr: String,
+        #[arg(long)]
+        ensure_index: bool,
+        #[arg(long)]
+        warm_index: bool,
         #[arg(long)]
         yes_download: bool,
         #[arg(long, value_enum, default_value_t = EvalFormat::Table)]
@@ -423,7 +457,6 @@ fn dispatch_command(cmd: Commands, cfg: &mut Config) -> Result<()> {
             paths,
             status,
             sketch_only,
-            projection,
             yes_download,
             ensure_model: ensure_model_flag,
             purge,
@@ -450,11 +483,10 @@ fn dispatch_command(cmd: Commands, cfg: &mut Config) -> Result<()> {
                     let idx = Index::open(&repo)?;
                     let stats = idx.temperature_stats().unwrap_or_default();
                     println!(
-                        "index: {} chunks, {} files, model={}, projection={}, sketch_only={}",
+                        "index: {} chunks, {} files, model={}, sketch_only={}",
                         idx.manifest.chunk_count,
                         idx.manifest.file_count,
                         idx.manifest.model_id,
-                        idx.manifest.projection,
                         idx.manifest.sketch_only
                     );
                     println!(
@@ -474,11 +506,9 @@ fn dispatch_command(cmd: Commands, cfg: &mut Config) -> Result<()> {
                 Some(require_embedder(cfg, &opts).context("resolve embedder")?)
             };
 
-            let proj = projection.unwrap_or_else(|| cfg.index.projection.clone());
             let opts = IndexBuildOptions {
                 model_id: cfg.embedder.active.clone(),
                 dim: cfg.embedder.dim,
-                projection: proj,
                 sketch_only,
             };
             let idx = build_index(&repo, embedder.as_deref(), &opts).context("build index")?;
@@ -490,35 +520,29 @@ fn dispatch_command(cmd: Commands, cfg: &mut Config) -> Result<()> {
             );
         }
         Commands::Research { cmd } => match cmd {
-            ResearchCmd::Pq4 { cmd } => match cmd {
-                Pq4Cmd::Train {
+            ResearchCmd::Router { cmd } => match cmd {
+                ResearchRouterCmd::Traces {
                     corpus,
                     suite,
+                    output,
                     yes_download,
                 } => {
-                    let mut c = cfg.clone();
-                    let emb = require_embedder(
-                        &mut c,
-                        &EnsureOptions::for_required_semantic(yes_download),
-                    )
-                    .context("embedding model required")?;
-                    let path = gp_research::train_pq4(&corpus, &suite, emb.as_ref(), c.embedder.dim)
-                        .context("pq4 train")?;
-                    println!("saved learned PQ4 to {}", path.display());
-                }
-                Pq4Cmd::Ablate {
-                    corpus,
-                    suite,
-                    projections,
-                    yes_download,
-                } => {
-                    let harness = AgentCodeHarness::new(corpus, suite)
-                        .with_config(cfg.clone())
-                        .ensure_model(yes_download);
-                    let parsed: Vec<&str> = projections.split(',').map(|s| s.trim()).collect();
-                    let results = gp_research::ablate_projections(&harness, &parsed)
-                        .context("pq4 ablate")?;
-                    println!("{}", gp_research::format_ablation(&results));
+                    let harness = build_eval_harness(
+                        &cfg,
+                        corpus,
+                        suite,
+                        true,
+                        true,
+                        false,
+                        yes_download,
+                        None,
+                        false,
+                        None,
+                        None,
+                    );
+                    let path = gp_research::generate_router_traces(&harness, output.as_deref())
+                        .context("router traces")?;
+                    println!("wrote router traces to {}", path.display());
                 }
             },
         },
@@ -568,12 +592,24 @@ fn dispatch_command(cmd: Commands, cfg: &mut Config) -> Result<()> {
                 warm_index,
                 isolate_modes: _,
                 yes_download,
+                filter_category,
+                filter_laser_miss,
+                jit_embed_budget,
+                jit_reheat_file_cap,
             } => {
-                let harness = AgentCodeHarness::new(corpus, suite)
-                    .with_config(cfg.clone())
-                    .ensure_index(ensure_index)
-                    .warm_index(warm_index)
-                    .ensure_model(yes_download);
+                let harness = build_eval_harness(
+                    &cfg,
+                    corpus,
+                    suite,
+                    ensure_index,
+                    warm_index,
+                    false,
+                    yes_download,
+                    filter_category,
+                    filter_laser_miss,
+                    jit_embed_budget,
+                    jit_reheat_file_cap,
+                );
                 let eval_mode = parse_mode(&mode)?;
                 let metrics = harness.run(eval_mode, "").context("eval run")?;
                 print_metrics(&mode, &metrics);
@@ -587,13 +623,24 @@ fn dispatch_command(cmd: Commands, cfg: &mut Config) -> Result<()> {
                 isolate_modes,
                 yes_download,
                 format,
+                filter_category,
+                filter_laser_miss,
+                jit_embed_budget,
+                jit_reheat_file_cap,
             } => {
-                let harness = AgentCodeHarness::new(corpus, suite)
-                    .with_config(cfg.clone())
-                    .ensure_index(ensure_index)
-                    .warm_index(warm_index)
-                    .isolate_modes(isolate_modes)
-                    .ensure_model(yes_download);
+                let harness = build_eval_harness(
+                    &cfg,
+                    corpus,
+                    suite,
+                    ensure_index,
+                    warm_index,
+                    isolate_modes,
+                    yes_download,
+                    filter_category,
+                    filter_laser_miss,
+                    jit_embed_budget,
+                    jit_reheat_file_cap,
+                );
                 let parsed: Result<Vec<EvalMode>> = modes
                     .split(',')
                     .map(|m| parse_mode(m.trim()))
@@ -618,13 +665,24 @@ fn dispatch_command(cmd: Commands, cfg: &mut Config) -> Result<()> {
                 isolate_modes,
                 yes_download,
                 format,
+                filter_category,
+                filter_laser_miss,
+                jit_embed_budget,
+                jit_reheat_file_cap,
             } => {
-                let harness = AgentCodeHarness::new(corpus, suite)
-                    .with_config(cfg.clone())
-                    .ensure_index(ensure_index)
-                    .warm_index(warm_index)
-                    .isolate_modes(isolate_modes)
-                    .ensure_model(yes_download);
+                let harness = build_eval_harness(
+                    &cfg,
+                    corpus,
+                    suite,
+                    ensure_index,
+                    warm_index,
+                    isolate_modes,
+                    yes_download,
+                    filter_category,
+                    filter_laser_miss,
+                    jit_embed_budget,
+                    jit_reheat_file_cap,
+                );
                 let parsed: Result<Vec<EvalMode>> = modes
                     .split(',')
                     .map(|m| parse_mode(m.trim()))
@@ -640,6 +698,32 @@ fn dispatch_command(cmd: Commands, cfg: &mut Config) -> Result<()> {
                             println!();
                         }
                     }
+                }
+            }
+            EvalCmd::Agent {
+                corpus,
+                suite,
+                retrievers,
+                serve_addr,
+                ensure_index,
+                warm_index,
+                yes_download,
+                format,
+            } => {
+                let results = gp_agent_eval::run_agent_eval(
+                    &cfg,
+                    &corpus,
+                    &suite,
+                    &retrievers,
+                    &serve_addr,
+                    ensure_index,
+                    warm_index,
+                    yes_download,
+                )
+                .context("eval agent")?;
+                match format {
+                    EvalFormat::Json => println!("{}", serde_json::to_string_pretty(&results)?),
+                    EvalFormat::Table => println!("{}", gp_agent_eval::format_agent_report(&results)),
                 }
             }
         },
@@ -723,13 +807,11 @@ fn run_search(
                 &repo,
                 &cfg.embedder.active,
                 cfg.embedder.dim,
-                &cfg.index.projection,
             );
         } else if !Index::exists(&repo) {
             let opts = IndexBuildOptions {
                 model_id: cfg.embedder.active.clone(),
                 dim: cfg.embedder.dim,
-                projection: cfg.index.projection.clone(),
                 sketch_only: false,
             };
             build_index(&repo, embedder.as_deref(), &opts).context("build index")?;
@@ -795,6 +877,34 @@ fn print_scored(hits: &[ScoredChunk], line_numbers: bool) {
     }
 }
 
+fn build_eval_harness(
+    cfg: &Config,
+    corpus: PathBuf,
+    suite: PathBuf,
+    ensure_index: bool,
+    warm_index: bool,
+    isolate_modes: bool,
+    yes_download: bool,
+    filter_category: Option<String>,
+    filter_laser_miss: bool,
+    jit_embed_budget: Option<usize>,
+    jit_reheat_file_cap: Option<usize>,
+) -> AgentCodeHarness {
+    AgentCodeHarness::new(corpus, suite)
+        .with_config(cfg.clone())
+        .ensure_index(ensure_index)
+        .warm_index(warm_index)
+        .isolate_modes(isolate_modes)
+        .ensure_model(yes_download)
+        .filter_category(filter_category)
+        .filter_laser_miss(filter_laser_miss)
+        .overrides(HarnessOverrides {
+            jit_embed_budget,
+            jit_reheat_file_cap,
+            router_mode: None,
+        })
+}
+
 fn parse_mode(s: &str) -> Result<EvalMode> {
     match s {
         "grep" | "unix-grep" | "posix-grep" => Ok(EvalMode::Grep),
@@ -803,8 +913,14 @@ fn parse_mode(s: &str) -> Result<EvalMode> {
         "vector" | "semantic" => Ok(EvalMode::Vector),
         "hybrid" => Ok(EvalMode::Hybrid),
         "jit" | "progressive" => Ok(EvalMode::Jit),
+        "prefocus" => Ok(EvalMode::Prefocus),
+        "fixed-grep" | "always-grep" => Ok(EvalMode::FixedGrep),
+        "fixed-hybrid" | "always-hybrid" => Ok(EvalMode::FixedHybrid),
+        "router-heuristic" | "auto-heuristic" => Ok(EvalMode::RouterHeuristic),
+        "router-feature" | "auto-feature" => Ok(EvalMode::RouterFeature),
+        "router-learned" | "auto-learned" => Ok(EvalMode::RouterLearned),
         other => anyhow::bail!(
-            "unknown eval mode: {other} (use grep, ripgrep, laser, vector, hybrid, jit)"
+            "unknown eval mode: {other} (use grep, ripgrep, laser, vector, hybrid, jit, prefocus, fixed-grep, fixed-hybrid, router-heuristic, router-feature, router-learned)"
         ),
     }
 }
@@ -813,7 +929,11 @@ fn print_metrics(mode: &str, m: &gp_core::traits::EvalMetrics) {
     println!("mode={mode}");
     println!("  recall@10: {:.3}", m.recall_at_10);
     println!("  mrr:       {:.3}", m.mrr);
-    println!("  success:   {:.3}", m.success_rate);
+    println!("  hit_rate:  {:.3}", m.hit_rate);
+    if let Some(ra) = m.route_accuracy {
+        println!("  route_acc: {:.3}", ra);
+    }
+    println!("  embed_mb:  {:.3}", m.cumulative_embed_bytes as f64 / 1_048_576.0);
     println!("  cold@1:    {:.1} ms", m.cold_latency_ms);
     println!("  warm@2+:   {:.1} ms", m.warm_latency_ms);
     println!("  mean:      {:.1} ms", m.mean_latency_ms);

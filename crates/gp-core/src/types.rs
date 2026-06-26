@@ -28,7 +28,8 @@ pub enum RetrievalSource {
     Grep,
     Laser,
     Sketch,
-    Pq4,
+    #[serde(alias = "Pq4")]
+    Vector,
     Fused,
 }
 

@@ -146,7 +146,7 @@ fn print_startup_banner(addr: SocketAddr, opts: &ServeOptions) {
         eprintln!(
             "  index: ensure sketch shell per search{}",
             if opts.warm_index {
-                " (warm PQ4 when missing)"
+                " (warm index when missing)"
             } else {
                 ""
             }
@@ -308,7 +308,6 @@ fn ensure_repo_index(
             let opts = IndexBuildOptions {
                 model_id: cfg.embedder.active.clone(),
                 dim: cfg.embedder.dim,
-                projection: cfg.index.projection.clone(),
                 sketch_only: false,
             };
             build_index(repo, embedder, &opts)?;
@@ -318,7 +317,6 @@ fn ensure_repo_index(
             repo,
             &cfg.embedder.active,
             cfg.embedder.dim,
-            &cfg.index.projection,
         );
     }
     Ok(())

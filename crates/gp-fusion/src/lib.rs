@@ -193,7 +193,7 @@ mod tests {
     fn rrf_merges_lists() {
         let fusion = RrfFusion::default();
         let grep = vec![scored(1, 1.0, RetrievalSource::Grep)];
-        let semantic = vec![scored(2, 0.9, RetrievalSource::Pq4)];
+        let semantic = vec![scored(2, 0.9, RetrievalSource::Vector)];
         let out = fusion.fuse(grep, semantic);
         assert_eq!(out.len(), 2);
     }
@@ -203,7 +203,7 @@ mod tests {
         let fusion = RrfFusion::default();
         let exact = vec![scored(42, 1.0, RetrievalSource::Grep)];
         let laser = vec![scored(40, 1.0, RetrievalSource::Laser)];
-        let semantic = vec![scored(2, 0.9, RetrievalSource::Pq4)];
+        let semantic = vec![scored(2, 0.9, RetrievalSource::Vector)];
         let lexical = fusion.fuse_lexical(exact.clone(), laser);
         let out = fusion.fuse_hybrid(lexical, semantic, exact);
         assert!(out[0].score >= EXACT_PIN_SCORE);

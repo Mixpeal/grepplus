@@ -34,14 +34,7 @@ pub trait Embedder: Send + Sync {
     fn model_id(&self) -> &str;
 }
 
-/// Track 2. Projection + quantization backend.
-pub trait ProjectionBackend: Send + Sync {
-    fn project(&self, vec: &[f32]) -> Q4Code;
-    fn score(&self, query: &[f32], code: &Q4Code) -> f32;
-    fn id(&self) -> &str;
-}
-
-/// Quantized code produced by a ProjectionBackend.
+/// Track 2. Quantized embedding code stored in the index.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Q4Code {
     pub bytes: Vec<u8>,
@@ -81,19 +74,56 @@ pub enum EvalMode {
     Hybrid,
     /// JIT: sketch shell + temperature-aware embed (no full warm index required).
     Jit,
+    /// Track 4: SketchBeam pre-focus path only.
+    Prefocus,
+    /// Track 3: always route to grep.
+    FixedGrep,
+    /// Track 3: always route to hybrid.
+    FixedHybrid,
+    /// Track 3: heuristic router per query.
+    RouterHeuristic,
+    /// Track 3: feature router per query.
+    RouterFeature,
+    /// Track 3: learned router per query.
+    RouterLearned,
+}
+
+/// Per-query JIT embed accounting (fp32 bytes = chunks × dim × 4).
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct QueryEmbedStats {
+    pub query_id: String,
+    pub chunks_embedded: usize,
+    pub bytes_embedded: usize,
+}
+
+/// Session-level embed accounting for JIT economics curves.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct EmbedAccounting {
+    pub chunks_embedded: usize,
+    pub bytes_embedded: usize,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct EvalMetrics {
     pub recall_at_10: f32,
     pub mrr: f32,
-    pub success_rate: f32,
+    /// Fraction of queries with recall > 0 (retrieval proxy).
+    #[serde(alias = "success_rate")]
+    pub hit_rate: f32,
     pub mean_latency_ms: f32,
     /// Latency of the first query (cold JIT / cache miss proxy).
     pub cold_latency_ms: f32,
     /// Mean latency excluding the first query (session-warm proxy).
     pub warm_latency_ms: f32,
+    /// Cumulative fp32 embed bytes across the eval session.
+    pub cumulative_embed_bytes: u64,
+    /// Per-query embed stats (JIT economics).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub per_query: Vec<QueryEmbedStats>,
     pub per_category: std::collections::BTreeMap<String, CategoryMetrics>,
+    /// Router ablation: fraction of queries where chosen route matched oracle.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub route_accuracy: Option<f32>,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize)]

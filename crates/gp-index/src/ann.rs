@@ -1,7 +1,8 @@
-//! Flat HNSW-style ANN over PQ4 codes for large-repo search.
+//! Flat HNSW-style ANN over quantized vectors for large-repo search.
 
+use crate::vectors::VectorCodec;
 use gp_core::error::{GpError, Result};
-use gp_core::traits::{ProjectionBackend, Q4Code};
+use gp_core::traits::Q4Code;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -16,7 +17,7 @@ pub struct AnnGraph {
 }
 
 impl AnnGraph {
-    pub fn build(codes: &[Q4Code], backend: &dyn ProjectionBackend, query_samples: &[Vec<f32>]) -> Self {
+    pub fn build(codes: &[Q4Code], codec: &VectorCodec, query_samples: &[Vec<f32>]) -> Self {
         let n = codes.len();
         let mut neighbors = vec![Vec::new(); n];
         if n == 0 {
@@ -32,7 +33,7 @@ impl AnnGraph {
                 if i == j {
                     continue;
                 }
-                let s = backend.score(qi, code);
+                let s = codec.score(qi, code);
                 scores.push((j as u32, s));
             }
             scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
@@ -49,7 +50,7 @@ impl AnnGraph {
         &self,
         query: &[f32],
         codes: &[Q4Code],
-        backend: &dyn ProjectionBackend,
+        codec: &VectorCodec,
         top_k: usize,
     ) -> Vec<(usize, f32)> {
         if codes.is_empty() {
@@ -57,7 +58,7 @@ impl AnnGraph {
         }
         let mut visited = vec![false; codes.len()];
         let mut candidates: Vec<(usize, f32)> = (0..codes.len().min(EF_SEARCH))
-            .map(|i| (i, backend.score(query, &codes[i])))
+            .map(|i| (i, codec.score(query, &codes[i])))
             .collect();
         candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
         let mut best = candidates.clone();
@@ -76,7 +77,7 @@ impl AnnGraph {
                 if idx >= codes.len() || visited[idx] {
                     continue;
                 }
-                let s = backend.score(query, &codes[idx]);
+                let s = codec.score(query, &codes[idx]);
                 candidates.push((idx, s));
                 best.push((idx, s));
             }
@@ -105,16 +106,16 @@ pub fn load_graph(path: &Path) -> Result<AnnGraph> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gp_pq4::BaselineQ4;
+    use crate::vectors::VectorCodec;
 
     #[test]
     fn graph_search_returns_results() {
-        let backend = BaselineQ4 { proj_dim: 4 };
+        let codec = VectorCodec::new(4);
         let codes: Vec<Q4Code> = (0..20)
             .map(|i| {
                 let mut v = vec![0.0; 4];
                 v[i % 4] = 1.0;
-                backend.project(&v)
+                codec.project(&v)
             })
             .collect();
         let samples: Vec<Vec<f32>> = (0..20)
@@ -124,9 +125,9 @@ mod tests {
                 v
             })
             .collect();
-        let graph = AnnGraph::build(&codes, &backend, &samples);
+        let graph = AnnGraph::build(&codes, &codec, &samples);
         let q = vec![1.0, 0.0, 0.0, 0.0];
-        let hits = graph.search(&q, &codes, &backend, 5);
+        let hits = graph.search(&q, &codes, &codec, 5);
         assert!(!hits.is_empty());
     }
 }
