@@ -23,7 +23,14 @@ Tries a GitHub release binary first, then Homebrew, then `cargo install`. Binari
 
 ```bash
 brew tap mixpeal/grepplus
+brew trust mixpeal/grepplus
 brew install grepplus
+```
+
+If `brew install` fails because `v0.1.0` is not tagged yet, use:
+
+```bash
+brew install --HEAD mixpeal/grepplus/grepplus
 ```
 
 ### From source

@@ -43,7 +43,8 @@ latest_tag() {
     printf '%s\n' "$GREPPLUS_VERSION"
     return
   fi
-  curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+  # No -f: /releases/latest returns 404 when no release exists yet.
+  curl -sSL "https://api.github.com/repos/${REPO}/releases/latest" \
     | sed -n 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' \
     | head -n1
 }
@@ -78,7 +79,12 @@ install_with_brew() {
   command -v brew >/dev/null 2>&1 || return 1
   info "Installing with Homebrew"
   brew tap mixpeal/grepplus
-  brew install grepplus
+  brew trust mixpeal/grepplus 2>/dev/null || true
+  if brew install grepplus; then
+    return 0
+  fi
+  warn "stable install failed (push tag v0.1.0 for release tarballs); trying --HEAD"
+  brew install --HEAD mixpeal/grepplus/grepplus
 }
 
 install_with_cargo() {
