@@ -11,16 +11,19 @@
 
 ## Install
 
+### Install script
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Mixpeal/grepplus/main/install.sh)"
+```
+
+Tries a GitHub release binary first, then Homebrew, then `cargo install`. Binaries go to `~/.local/bin` by default.
+
 ### Homebrew
 
 ```bash
-brew install Mixpeal/grepplus/grepplus
-```
-
-To install the latest `main` branch:
-
-```bash
-brew install --HEAD Mixpeal/grepplus/grepplus
+brew tap mixpeal/grepplus
+brew install grepplus
 ```
 
 ### From source
@@ -356,6 +359,24 @@ Query
 ```
 
 **Progressive embed ladder:** sketch shell → budgeted JIT reheat → per-file HOT cache. Matches grep’s zero-setup model while improving recall after warmup.
+
+---
+
+## Uninstall
+
+Remove binaries (pick the method you used):
+
+```bash
+brew uninstall grepplus          # Homebrew
+rm -f ~/.local/bin/grepplus ~/.local/bin/gp   # install.sh
+cargo uninstall gp-cli             # cargo install
+```
+
+To remove models, indexes, and config:
+
+```bash
+rm -rf ~/.grepplus
+```
 
 ---
 
