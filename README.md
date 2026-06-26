@@ -11,10 +11,24 @@
 
 ## Install
 
+### Homebrew
+
+```bash
+brew install Mixpeal/grepplus/grepplus
+```
+
+To install the latest `main` branch:
+
+```bash
+brew install --HEAD Mixpeal/grepplus/grepplus
+```
+
+### From source
+
 Requires **Rust 1.75+** (2021 edition).
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Mixpeal/grepplus.git
 cd grepplus
 cargo install --path crates/gp-cli --force
 ```
