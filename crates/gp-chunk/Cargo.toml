@@ -1,0 +1,12 @@
+[package]
+name = "gp-chunk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+gp-core = { path = "../gp-core" }
+regex = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

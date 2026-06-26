@@ -1,0 +1,72 @@
+{
+  "models": [
+    {
+      "id": "qwen3-embedding-0.6b",
+      "repo": "n24q02m/Qwen3-Embedding-0.6B-ONNX",
+      "revision": "main",
+      "format": "onnx",
+      "model_file": "onnx/model_quantized.onnx",
+      "tokenizer_file": "tokenizer.json",
+      "native_dim": 1024,
+      "max_len": 512,
+      "pooling": "last",
+      "max_batch": 1,
+      "size_mb": 573,
+      "description": "Default — Qwen/Qwen3-Embedding-0.6B ONNX INT8 (MRL 32–1024d, stable CPU)"
+    },
+    {
+      "id": "bge-small-en-v1.5",
+      "repo": "BAAI/bge-small-en-v1.5",
+      "revision": "main",
+      "format": "onnx",
+      "model_file": "onnx/model.onnx",
+      "tokenizer_file": "tokenizer.json",
+      "native_dim": 384,
+      "max_len": 512,
+      "pooling": "mean",
+      "size_mb": 126,
+      "description": "Fast lightweight English embeddings (~126 MB ONNX)"
+    },
+    {
+      "id": "nomic-embed-text-v1.5",
+      "repo": "nomic-ai/nomic-embed-text-v1.5",
+      "revision": "main",
+      "format": "onnx",
+      "model_file": "onnx/model_q4f16.onnx",
+      "tokenizer_file": "tokenizer.json",
+      "native_dim": 768,
+      "max_len": 2048,
+      "pooling": "mean",
+      "size_mb": 105,
+      "description": "Balanced general retrieval — multilingual (ONNX Q4F16 default, quants ~105–261 MB)"
+    },
+    {
+      "id": "e5-small-v2",
+      "repo": "intfloat/e5-small-v2",
+      "revision": "main",
+      "format": "onnx",
+      "model_file": "onnx/model_qint8_avx512_vnni.onnx",
+      "tokenizer_file": "tokenizer.json",
+      "native_dim": 384,
+      "max_len": 512,
+      "pooling": "mean",
+      "size_mb": 32,
+      "description": "Fast multilingual embeddings (E5 family, qint8 default, quants ~32–63 MB)"
+    },
+    {
+      "id": "harrier-oss-v1-0.6b",
+      "repo": "onnx-community/harrier-oss-v1-0.6b-ONNX",
+      "revision": "main",
+      "format": "onnx",
+      "model_file": "onnx/model_q4f16.onnx",
+      "tokenizer_file": "tokenizer.json",
+      "extra_files": ["onnx/model_q4f16.onnx_data"],
+      "native_dim": 1024,
+      "max_len": 8192,
+      "pooling": "last",
+      "max_batch": 1,
+      "size_mb": 337,
+      "description": "Microsoft Harrier OSS v1 0.6B — code-oriented embeddings (ONNX Q4F16)"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+[package]
+name = "gp-search"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+gp-core = { path = "../gp-core" }
+gp-fusion = { path = "../gp-fusion" }
+gp-grep = { path = "../gp-grep" }
+gp-index = { path = "../gp-index" }
+gp-laser = { path = "../gp-laser" }
+gp-pq4 = { path = "../gp-pq4" }
+gp-sketch = { path = "../gp-sketch" }
+
+[dev-dependencies]
+tempfile = { workspace = true }

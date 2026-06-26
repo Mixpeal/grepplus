@@ -1,0 +1,10 @@
+[package]
+name = "gp-fusion"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+gp-core = { path = "../gp-core" }
+
+[dev-dependencies]

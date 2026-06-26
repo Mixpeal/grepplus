@@ -1,0 +1,20 @@
+{"id":"L001","query":"handleSessionRefresh","category":"L","oracles":[{"file":"auth/session.rs","start_line":1,"end_line":3}]}
+{"id":"L002","query":"CircuitBreaker","category":"L","oracles":[{"file":"resilience/breaker.rs","start_line":1,"end_line":5}]}
+{"id":"L003","query":"validate_token","category":"L","oracles":[{"file":"auth/token.rs","start_line":1,"end_line":3}]}
+{"id":"L004","query":"retry_with_backoff","category":"L","oracles":[{"file":"retry/backoff.rs","start_line":1,"end_line":7}]}
+{"id":"L005","query":"fallback_handler","category":"L","oracles":[{"file":"resilience/fallback.rs","start_line":2,"end_line":4}]}
+{"id":"P001","query":"where is retry logic","category":"P","oracles":[{"file":"retry/backoff.rs","start_line":1,"end_line":11}]}
+{"id":"P002","query":"graceful degradation upstream failure","category":"P","oracles":[{"file":"resilience/fallback.rs","start_line":1,"end_line":8}]}
+{"id":"P003","query":"refresh user session credentials","category":"P","oracles":[{"file":"auth/session.rs","start_line":1,"end_line":7}]}
+{"id":"P004","query":"open circuit when dependency fails","category":"P","oracles":[{"file":"resilience/breaker.rs","start_line":1,"end_line":5}]}
+{"id":"P005","query":"reject blank authentication token","category":"P","oracles":[{"file":"auth/token.rs","start_line":1,"end_line":3}]}
+{"id":"H001","query":"auth token validation","category":"H","oracles":[{"file":"auth/token.rs","start_line":1,"end_line":3}]}
+{"id":"H002","query":"session refresh validates token","category":"H","oracles":[{"file":"auth/session.rs","start_line":1,"end_line":7}]}
+{"id":"H003","query":"retry with maximum attempts","category":"H","oracles":[{"file":"retry/backoff.rs","start_line":1,"end_line":7}]}
+{"id":"H004","query":"fallback uses circuit breaker","category":"H","oracles":[{"file":"resilience/fallback.rs","start_line":1,"end_line":8}]}
+{"id":"H005","query":"try_once retry attempt","category":"H","oracles":[{"file":"retry/backoff.rs","start_line":9,"end_line":11}]}
+{"id":"X001","query":"session handler and token validator","category":"X","oracles":[{"file":"auth/session.rs","start_line":1,"end_line":7},{"file":"auth/token.rs","start_line":1,"end_line":3}]}
+{"id":"X002","query":"graceful degradation opens circuit breaker","category":"X","oracles":[{"file":"resilience/fallback.rs","start_line":1,"end_line":8},{"file":"resilience/breaker.rs","start_line":1,"end_line":5}]}
+{"id":"X003","query":"retry loop calls single attempt helper","category":"X","oracles":[{"file":"retry/backoff.rs","start_line":1,"end_line":11}]}
+{"id":"X004","query":"upstream failure fallback path","category":"X","oracles":[{"file":"resilience/fallback.rs","start_line":1,"end_line":4},{"file":"resilience/breaker.rs","start_line":3,"end_line":5}]}
+{"id":"X005","query":"validate token during session refresh flow","category":"X","oracles":[{"file":"auth/session.rs","start_line":1,"end_line":3},{"file":"auth/token.rs","start_line":1,"end_line":3}]}

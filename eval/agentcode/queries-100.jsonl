@@ -1,0 +1,100 @@
+{"id": "L001", "query": "handleSessionRefresh", "category": "L", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 3}]}
+{"id": "L001-v1", "query": "handleSessionRefresh_1", "category": "L", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 3}]}
+{"id": "L001-v2", "query": "handleSessionRefresh", "category": "L", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 3}]}
+{"id": "L001-v3", "query": "handleSessionRefresh_3", "category": "L", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 3}]}
+{"id": "L001-v4", "query": "handleSessionRefresh", "category": "L", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 3}]}
+{"id": "L002", "query": "CircuitBreaker", "category": "L", "oracles": [{"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "L002-v1", "query": "CircuitBreaker_1", "category": "L", "oracles": [{"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "L002-v2", "query": "CircuitBreaker", "category": "L", "oracles": [{"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "L002-v3", "query": "CircuitBreaker_3", "category": "L", "oracles": [{"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "L002-v4", "query": "CircuitBreaker", "category": "L", "oracles": [{"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "L003", "query": "validate_token", "category": "L", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "L003-v1", "query": "validate_token_1", "category": "L", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "L003-v2", "query": "validate_token", "category": "L", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "L003-v3", "query": "validate_token_3", "category": "L", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "L003-v4", "query": "validate_token", "category": "L", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "L004", "query": "retry_with_backoff", "category": "L", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 7}]}
+{"id": "L004-v1", "query": "retry_with_backoff_1", "category": "L", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 7}]}
+{"id": "L004-v2", "query": "retry_with_backoff", "category": "L", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 7}]}
+{"id": "L004-v3", "query": "retry_with_backoff_3", "category": "L", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 7}]}
+{"id": "L004-v4", "query": "retry_with_backoff", "category": "L", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 7}]}
+{"id": "L005", "query": "fallback_handler", "category": "L", "oracles": [{"file": "resilience/fallback.rs", "start_line": 2, "end_line": 4}]}
+{"id": "L005-v1", "query": "fallback_handler_1", "category": "L", "oracles": [{"file": "resilience/fallback.rs", "start_line": 2, "end_line": 4}]}
+{"id": "L005-v2", "query": "fallback_handler", "category": "L", "oracles": [{"file": "resilience/fallback.rs", "start_line": 2, "end_line": 4}]}
+{"id": "L005-v3", "query": "fallback_handler_3", "category": "L", "oracles": [{"file": "resilience/fallback.rs", "start_line": 2, "end_line": 4}]}
+{"id": "L005-v4", "query": "fallback_handler", "category": "L", "oracles": [{"file": "resilience/fallback.rs", "start_line": 2, "end_line": 4}]}
+{"id": "P001", "query": "where is retry logic", "category": "P", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 11}]}
+{"id": "P001-v1", "query": "where is retry logic in codebase", "category": "P", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 11}]}
+{"id": "P001-v2", "query": "where is retry logic implementation", "category": "P", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 11}]}
+{"id": "P001-v3", "query": "where is retry logic module", "category": "P", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 11}]}
+{"id": "P001-v4", "query": "where is retry logic source", "category": "P", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 11}]}
+{"id": "P002", "query": "graceful degradation upstream failure", "category": "P", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}]}
+{"id": "P002-v1", "query": "graceful degradation upstream failure in codebase", "category": "P", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}]}
+{"id": "P002-v2", "query": "graceful degradation upstream failure implementation", "category": "P", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}]}
+{"id": "P002-v3", "query": "graceful degradation upstream failure module", "category": "P", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}]}
+{"id": "P002-v4", "query": "graceful degradation upstream failure source", "category": "P", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}]}
+{"id": "P003", "query": "refresh user session credentials", "category": "P", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}]}
+{"id": "P003-v1", "query": "refresh user session credentials in codebase", "category": "P", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}]}
+{"id": "P003-v2", "query": "refresh user session credentials implementation", "category": "P", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}]}
+{"id": "P003-v3", "query": "refresh user session credentials module", "category": "P", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}]}
+{"id": "P003-v4", "query": "refresh user session credentials source", "category": "P", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}]}
+{"id": "P004", "query": "open circuit when dependency fails", "category": "P", "oracles": [{"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "P004-v1", "query": "open circuit when dependency fails in codebase", "category": "P", "oracles": [{"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "P004-v2", "query": "open circuit when dependency fails implementation", "category": "P", "oracles": [{"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "P004-v3", "query": "open circuit when dependency fails module", "category": "P", "oracles": [{"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "P004-v4", "query": "open circuit when dependency fails source", "category": "P", "oracles": [{"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "P005", "query": "reject blank authentication token", "category": "P", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "P005-v1", "query": "reject blank authentication token in codebase", "category": "P", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "P005-v2", "query": "reject blank authentication token implementation", "category": "P", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "P005-v3", "query": "reject blank authentication token module", "category": "P", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "P005-v4", "query": "reject blank authentication token source", "category": "P", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "H001", "query": "auth token validation", "category": "H", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "H001-v1", "query": "auth token validation (variant 1)", "category": "H", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "H001-v2", "query": "auth token validation (variant 2)", "category": "H", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "H001-v3", "query": "auth token validation (variant 3)", "category": "H", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "H001-v4", "query": "auth token validation (variant 4)", "category": "H", "oracles": [{"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "H002", "query": "session refresh validates token", "category": "H", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}]}
+{"id": "H002-v1", "query": "session refresh validates token (variant 1)", "category": "H", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}]}
+{"id": "H002-v2", "query": "session refresh validates token (variant 2)", "category": "H", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}]}
+{"id": "H002-v3", "query": "session refresh validates token (variant 3)", "category": "H", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}]}
+{"id": "H002-v4", "query": "session refresh validates token (variant 4)", "category": "H", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}]}
+{"id": "H003", "query": "retry with maximum attempts", "category": "H", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 7}]}
+{"id": "H003-v1", "query": "retry with maximum attempts (variant 1)", "category": "H", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 7}]}
+{"id": "H003-v2", "query": "retry with maximum attempts (variant 2)", "category": "H", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 7}]}
+{"id": "H003-v3", "query": "retry with maximum attempts (variant 3)", "category": "H", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 7}]}
+{"id": "H003-v4", "query": "retry with maximum attempts (variant 4)", "category": "H", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 7}]}
+{"id": "H004", "query": "fallback uses circuit breaker", "category": "H", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}]}
+{"id": "H004-v1", "query": "fallback uses circuit breaker (variant 1)", "category": "H", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}]}
+{"id": "H004-v2", "query": "fallback uses circuit breaker (variant 2)", "category": "H", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}]}
+{"id": "H004-v3", "query": "fallback uses circuit breaker (variant 3)", "category": "H", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}]}
+{"id": "H004-v4", "query": "fallback uses circuit breaker (variant 4)", "category": "H", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}]}
+{"id": "H005", "query": "try_once retry attempt", "category": "H", "oracles": [{"file": "retry/backoff.rs", "start_line": 9, "end_line": 11}]}
+{"id": "H005-v1", "query": "try_once retry attempt (variant 1)", "category": "H", "oracles": [{"file": "retry/backoff.rs", "start_line": 9, "end_line": 11}]}
+{"id": "H005-v2", "query": "try_once retry attempt (variant 2)", "category": "H", "oracles": [{"file": "retry/backoff.rs", "start_line": 9, "end_line": 11}]}
+{"id": "H005-v3", "query": "try_once retry attempt (variant 3)", "category": "H", "oracles": [{"file": "retry/backoff.rs", "start_line": 9, "end_line": 11}]}
+{"id": "H005-v4", "query": "try_once retry attempt (variant 4)", "category": "H", "oracles": [{"file": "retry/backoff.rs", "start_line": 9, "end_line": 11}]}
+{"id": "X001", "query": "session handler and token validator", "category": "X", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}, {"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "X001-v1", "query": "session handler plus token validator", "category": "X", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}, {"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "X001-v2", "query": "session handler and token validator", "category": "X", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}, {"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "X001-v3", "query": "session handler and token validator", "category": "X", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}, {"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "X001-v4", "query": "session handler and token validator", "category": "X", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 7}, {"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "X002", "query": "graceful degradation opens circuit breaker", "category": "X", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}, {"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "X002-v1", "query": "graceful degradation opens circuit breaker", "category": "X", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}, {"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "X002-v2", "query": "graceful degradation opens circuit breaker", "category": "X", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}, {"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "X002-v3", "query": "graceful degradation opens circuit breaker", "category": "X", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}, {"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "X002-v4", "query": "graceful degradation opens circuit breaker", "category": "X", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 8}, {"file": "resilience/breaker.rs", "start_line": 1, "end_line": 5}]}
+{"id": "X003", "query": "retry loop calls single attempt helper", "category": "X", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 11}]}
+{"id": "X003-v1", "query": "retry loop calls single attempt helper", "category": "X", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 11}]}
+{"id": "X003-v2", "query": "retry loop calls single attempt helper", "category": "X", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 11}]}
+{"id": "X003-v3", "query": "retry loop calls single attempt helper", "category": "X", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 11}]}
+{"id": "X003-v4", "query": "retry loop calls single attempt helper", "category": "X", "oracles": [{"file": "retry/backoff.rs", "start_line": 1, "end_line": 11}]}
+{"id": "X004", "query": "upstream failure fallback path", "category": "X", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 4}, {"file": "resilience/breaker.rs", "start_line": 3, "end_line": 5}]}
+{"id": "X004-v1", "query": "upstream failure fallback path", "category": "X", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 4}, {"file": "resilience/breaker.rs", "start_line": 3, "end_line": 5}]}
+{"id": "X004-v2", "query": "upstream failure fallback path", "category": "X", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 4}, {"file": "resilience/breaker.rs", "start_line": 3, "end_line": 5}]}
+{"id": "X004-v3", "query": "upstream failure fallback path", "category": "X", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 4}, {"file": "resilience/breaker.rs", "start_line": 3, "end_line": 5}]}
+{"id": "X004-v4", "query": "upstream failure fallback path", "category": "X", "oracles": [{"file": "resilience/fallback.rs", "start_line": 1, "end_line": 4}, {"file": "resilience/breaker.rs", "start_line": 3, "end_line": 5}]}
+{"id": "X005", "query": "validate token during session refresh flow", "category": "X", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 3}, {"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "X005-v1", "query": "validate token during session refresh flow", "category": "X", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 3}, {"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "X005-v2", "query": "validate token during session refresh flow", "category": "X", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 3}, {"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "X005-v3", "query": "validate token during session refresh flow", "category": "X", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 3}, {"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
+{"id": "X005-v4", "query": "validate token during session refresh flow", "category": "X", "oracles": [{"file": "auth/session.rs", "start_line": 1, "end_line": 3}, {"file": "auth/token.rs", "start_line": 1, "end_line": 3}]}
