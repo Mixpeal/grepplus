@@ -50,7 +50,7 @@ latest_tag() {
 }
 
 install_from_release() {
-  local target tag asset url tmp
+  local target tag asset url
   target="$(detect_target)"
   tag="$(latest_tag)"
   [[ -n "$tag" ]] || return 1
@@ -59,17 +59,21 @@ install_from_release() {
   url="https://github.com/${REPO}/releases/download/${tag}/${asset}"
 
   info "Downloading ${tag} (${target})"
+
+  local tmp
   tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' RETURN
+  # RETURN + local tmp trips `set -u` when the trap runs; use EXIT in a subshell.
+  (
+    trap 'rm -rf "$tmp"' EXIT
+    if ! curl -fsSL --retry 3 --retry-delay 2 "$url" -o "${tmp}/${asset}"; then
+      warn "no release binary at ${url}"
+      exit 1
+    fi
 
-  if ! curl -fsSL "$url" -o "${tmp}/${asset}"; then
-    warn "no release binary at ${url}"
-    return 1
-  fi
-
-  ensure_install_dir
-  tar xzf "${tmp}/${asset}" -C "$tmp"
-  install -m 755 "${tmp}/grepplus" "${tmp}/gp" "$INSTALL_DIR/"
+    ensure_install_dir
+    tar xzf "${tmp}/${asset}" -C "$tmp"
+    install -m 755 "${tmp}/grepplus" "${tmp}/gp" "$INSTALL_DIR/"
+  ) || return 1
 
   info "Installed grepplus and gp to ${INSTALL_DIR}"
   path_hint
@@ -77,14 +81,17 @@ install_from_release() {
 
 install_with_brew() {
   command -v brew >/dev/null 2>&1 || return 1
-  info "Installing with Homebrew"
+  info "Installing with Homebrew (builds from source; may pull rust/llvm)"
+  export HOMEBREW_NO_AUTO_UPDATE=1
+  export HOMEBREW_NO_ENV_HINTS=1
+  export NONINTERACTIVE=1
   brew tap mixpeal/grepplus
   brew trust mixpeal/grepplus 2>/dev/null || true
-  if brew install grepplus; then
+  if CI=1 brew install grepplus; then
     return 0
   fi
-  warn "stable install failed (push tag v0.1.0 for release tarballs); trying --HEAD"
-  brew install --HEAD mixpeal/grepplus/grepplus
+  warn "stable install failed; trying --HEAD"
+  CI=1 brew install --HEAD mixpeal/grepplus/grepplus
 }
 
 install_with_cargo() {
@@ -101,8 +108,8 @@ install_with_cargo() {
 main() {
   case "$METHOD" in
     auto)
-      install_from_release || install_with_brew || install_with_cargo || \
-        die "install failed — install Rust (https://rustup.rs) or Homebrew (https://brew.sh) and retry"
+      install_from_release || install_with_cargo || install_with_brew || \
+        die "install failed — install Rust (https://rustup.rs) or use: brew tap mixpeal/grepplus && brew install grepplus"
       ;;
     release) install_from_release || die "release install failed" ;;
     brew) install_with_brew || die "brew install failed" ;;

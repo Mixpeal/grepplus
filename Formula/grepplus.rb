@@ -2,7 +2,7 @@ class Grepplus < Formula
   desc "Hybrid code search CLI — grep-fast by default, semantic when you need it"
   homepage "https://github.com/Mixpeal/grepplus"
   url "https://github.com/Mixpeal/grepplus/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "eba656de9b627bf4ed4601f829b70b64b3d45f2e0308d9969fd26131de0b96c1"
+  sha256 "d2d4b0932fc782dab0b205d44b2ff83cfde71c4fe778c589469fc6e5d0d7440d"
   license "Apache-2.0"
   head "https://github.com/Mixpeal/grepplus.git", branch: "main"
 
