@@ -14,12 +14,77 @@ ensure_install_dir() {
   mkdir -p "$INSTALL_DIR"
 }
 
-path_hint() {
+path_export_line() {
+  if [[ "$INSTALL_DIR" == "${HOME}/.local/bin" ]]; then
+    printf 'export PATH="$HOME/.local/bin:$PATH"'
+  else
+    printf 'export PATH="%s:$PATH"' "$INSTALL_DIR"
+  fi
+}
+
+detect_shell_rc() {
+  if [[ -n "${ZSH_VERSION:-}" ]] || [[ "${SHELL:-}" == *zsh* ]]; then
+    echo "${HOME}/.zshrc"
+  elif [[ -f "${HOME}/.bashrc" ]]; then
+    echo "${HOME}/.bashrc"
+  elif [[ -f "${HOME}/.profile" ]]; then
+    echo "${HOME}/.profile"
+  fi
+}
+
+configure_path() {
   case ":$PATH:" in
-    *":$INSTALL_DIR:"*) ;;
+    *":$INSTALL_DIR:"*)
+      info "grepplus is on your PATH."
+      return
+      ;;
+  esac
+
+  local line rc
+  line="$(path_export_line)"
+  export PATH="${INSTALL_DIR}:${PATH}"
+  info "Added ${INSTALL_DIR} to PATH for this session."
+
+  rc="$(detect_shell_rc)"
+  if [[ -z "$rc" ]]; then
+    warn "Could not detect a shell profile. Add this line manually:"
+    warn "  ${line}"
+    return
+  fi
+
+  if [[ -f "$rc" ]] && grep -Fq ".local/bin" "$rc" 2>/dev/null && [[ "$INSTALL_DIR" == "${HOME}/.local/bin" ]]; then
+    info "PATH entry already in ${rc} — run: source ${rc}"
+    return
+  fi
+  if [[ -f "$rc" ]] && grep -Fq "$INSTALL_DIR" "$rc" 2>/dev/null; then
+    info "PATH entry already in ${rc} — run: source ${rc}"
+    return
+  fi
+
+  if [[ ! -t 0 ]] || [[ "${GREPPLUS_NO_PATH_PROMPT:-}" == 1 ]]; then
+    warn "To use grepplus in new terminals, add this line to ${rc}:"
+    warn "  ${line}"
+    warn "Then run: source ${rc}"
+    return
+  fi
+
+  printf '\n%s is not on your PATH in new terminals.\n' "$INSTALL_DIR"
+  printf 'Add it to %s now? [Y/n] ' "$rc"
+  read -r reply
+  case "${reply:-Y}" in
+    [Yy]|"")
+      {
+        echo ""
+        echo "# grepplus"
+        echo "$line"
+      } >>"$rc"
+      info "Updated ${rc}"
+      info "Run: source ${rc}"
+      info "Or open a new terminal, then: grepplus --help"
+      ;;
     *)
-      warn "$INSTALL_DIR is not on your PATH."
-      warn "Add: export PATH=\"$INSTALL_DIR:\$PATH\""
+      warn "Skipped. Add manually to ${rc}:"
+      warn "  ${line}"
       ;;
   esac
 }
@@ -76,7 +141,7 @@ install_from_release() {
   ) || return 1
 
   info "Installed grepplus and gp to ${INSTALL_DIR}"
-  path_hint
+  configure_path
 }
 
 install_with_brew() {
@@ -102,7 +167,7 @@ install_with_cargo() {
   mkdir -p "${root}/bin"
   cargo install --git "https://github.com/${REPO}.git" --locked --root "$root" gp-cli
   info "Installed with cargo to ${root}/bin"
-  path_hint
+  configure_path
 }
 
 main() {

@@ -17,7 +17,7 @@
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Mixpeal/grepplus/main/install.sh)"
 ```
 
-Tries a GitHub release binary first, then `cargo install`, then Homebrew. Binaries go to `~/.local/bin` by default.
+Tries a GitHub release binary first, then `cargo install`, then Homebrew. Binaries go to `~/.local/bin` by default. The installer will offer to add that directory to your shell PATH.
 
 ### Homebrew
 
