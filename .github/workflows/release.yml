@@ -14,11 +14,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-15
             target: aarch64-apple-darwin
             asset: grepplus-aarch64-apple-darwin.tar.gz
             optional: false
-          - os: macos-latest
+          - os: macos-15
             target: x86_64-apple-darwin
             asset: grepplus-x86_64-apple-darwin.tar.gz
             optional: true
@@ -33,7 +33,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.optional }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -56,7 +56,7 @@ jobs:
           Copy-Item "target/${{ matrix.target }}/release/grepplus.exe" "$dest/"
           Copy-Item "target/${{ matrix.target }}/release/gp.exe" "$dest/"
           Compress-Archive -Path "$dest/*" -DestinationPath "${{ matrix.asset }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.asset }}
           path: ${{ matrix.asset }}
@@ -66,8 +66,8 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
         with:
           path: dist
           merge-multiple: true
