@@ -19,6 +19,14 @@
 
 Tries a GitHub release binary first, then `cargo install`, then Homebrew. Binaries go to `~/.local/bin` by default. The installer will offer to add that directory to your shell PATH.
 
+### crates.io
+
+```bash
+cargo install grepplus
+```
+
+Installs binaries `grepplus` and `gp`.
+
 ### Homebrew
 
 ```bash
@@ -29,15 +37,15 @@ brew install grepplus
 
 ### From source
 
-Requires **Rust 1.75+** (2021 edition).
+Requires a recent stable Rust toolchain (2021 edition; `ort` currently needs a newer MSRV — use latest stable).
 
 ```bash
 git clone https://github.com/Mixpeal/grepplus.git
 cd grepplus
-cargo install --path crates/gp-cli --force
+cargo install --path . --force
 ```
 
-Binaries: `grepplus` and `gp` (identical).
+Binaries: `grepplus` and `gp` (identical). Release CI also publishes Linux, macOS, and Windows artifacts.
 
 Data lives under `~/.grepplus/`:
 
@@ -104,11 +112,19 @@ grepplus --route-debug "auth middleware" ./src   # show route + rationale
 ### Grep-compatible flags
 
 
-| Flag                    | Description                              |
-| ----------------------- | ---------------------------------------- |
-| `-i`, `--ignore-case`   | Case-insensitive                         |
-| `-F`, `--fixed-strings` | Literal substring (no regex)             |
-| `-n`, `--line-numbers`  | Print `file:line` prefixes (default: on) |
+| Flag                         | Description                                   |
+| ---------------------------- | --------------------------------------------- |
+| `-i`, `--ignore-case`        | Case-insensitive                              |
+| `-F`, `--fixed-strings`      | Literal substring (no regex)                  |
+| `-n`, `--line-numbers`       | Print `file:line` prefixes (default: on)      |
+| `-g`, `--glob <GLOB>`        | Include only paths matching glob (repeatable) |
+| `-l`, `--files-with-matches` | Print only file paths with matches            |
+| `-c`, `--count`              | Print match counts per file                   |
+| `--max-count <NUM>`          | Cap matches (passed through to backends)      |
+| `-q`, `--quiet`              | Suppress fallback notices                     |
+
+
+Grep hits print `file:line:`; semantic/hybrid hits print `file:start-end` ranges with a preview. Empty hybrid/semantic results fall back to grep (stderr notice unless `--quiet`).
 
 
 ### Index & model flags
@@ -233,7 +249,7 @@ For hybrid/semantic routes, grep+ needs a local picture of the repo — source s
 | **MinHash sketch**            | Which files/chunks look textually related to the query                       |
 | **Vector codes**              | Compact quantized embeddings per chunk (upfront or JIT)                      |
 | **Per-file metadata**         | Hashes, chunk lists, temperature for progressive embed                       |
-| **ANN graph** *(large repos)* | Approximate nearest-neighbor links when chunk count exceeds `ann_min_chunks` |
+| **ANN graph** *(large repos)* | Approximate nearest-neighbor links when chunk count ≥ `ann_min_chunks` and `search.ann_enabled` — built on warm index and used at query time to expand semantic shortlists |
 
 
 The index is tied to a **model id** and **embedding dimension**. Change model or dim → rebuild or let JIT repopulate under the new settings.
@@ -306,18 +322,19 @@ grepplus serve --bind 127.0.0.1:9470 --ensure-index --token "$GREPPLUS_SERVE_TOK
 
 
 
-| Flag                 | Description                                          |
-| -------------------- | ---------------------------------------------------- |
-| `--bind <addr>`      | Listen address (default: `127.0.0.1:9470`)           |
-| `--ensure-index`     | Ensure sketch/warm index per search                  |
-| `--warm-index`       | Warm index when missing                              |
-| `--yes-download`     | Auto-download model if needed                        |
-| `--token <secret>`   | Require `Authorization: Bearer <token>` on `/search` |
-| `--no-cors`          | Disable CORS                                         |
-| `--no-reload-config` | Disable hot-reload of `~/.grepplus/config.toml`      |
+| Flag                      | Description                                              |
+| ------------------------- | -------------------------------------------------------- |
+| `--bind <addr>`           | Listen address (default: `127.0.0.1:9470`)              |
+| `--ensure-index`          | Ensure sketch/warm index per search                      |
+| `--warm-index`            | Warm index when missing                                  |
+| `--yes-download`          | Auto-download model if needed                            |
+| `--token <secret>`        | Require `Authorization: Bearer <token>` on `/search`     |
+| `--allow-unauthenticated` | Allow non-loopback bind without a token                  |
+| `--no-cors`               | Disable CORS                                             |
+| `--no-reload-config`      | Disable hot-reload of `~/.grepplus/config.toml`          |
 
 
-`GREPPLUS_SERVE_TOKEN` is used when `--token` is omitted.
+`GREPPLUS_SERVE_TOKEN` is used when `--token` is omitted. Binding a non-loopback address without a token is refused unless `--allow-unauthenticated` is set.
 
 Example:
 
@@ -332,7 +349,7 @@ curl -s -X POST http://127.0.0.1:9470/search \
 
 ## Configuration
 
-Load order: defaults → `~/.grepplus/config.toml` → `./.grepplus.toml`.
+Load order: defaults → `~/.grepplus/config.toml` → `./.grepplus.toml`. Partial files **deep-merge** fields within each section (missing keys keep defaults).
 
 ```toml
 [embedder]
@@ -341,9 +358,11 @@ dim = 256
 query_instruct = "Given a code search query, retrieve relevant source passages"
 
 [index]
+auto_ensure = false
 sketch = "beam"
-chunk_mode = "line"
+chunk_mode = "line"          # or "ast"
 cache_ttl_days = 7
+ann_min_chunks = 500
 exclude = ["node_modules", "target", ".git"]
 
 [search]
@@ -352,6 +371,7 @@ jit_enabled = true
 jit_embed_budget = 64
 laser_candidate_cap = 500
 sketch_beam_width = 50
+ann_enabled = true
 
 [router]
 mode = "heuristic"   # or "learned"
@@ -367,6 +387,9 @@ backend = "parallel"   # parallel | ripgrep | auto
 | ---------------------- | ------------------------------------ |
 | `GREPPLUS_CACHE_DIR`   | Override index cache root            |
 | `RUST_LOG` / `tracing` | Log level (default: `warn,ort=warn`) |
+
+
+Live knobs: `index.exclude` filters walks/grep; `index.chunk_mode` selects line vs AST chunking; `index.auto_ensure` ensures a sketch shell on search/serve; `search.fusion` selects fusion (`rrf`); `search.ann_enabled` gates ANN build and query-time use.
 
 
 ---
@@ -398,7 +421,7 @@ Remove binaries (pick the method you used):
 ```bash
 brew uninstall grepplus          # Homebrew
 rm -f ~/.local/bin/grepplus ~/.local/bin/gp   # install.sh
-cargo uninstall gp-cli             # cargo install
+cargo uninstall grepplus         # cargo install
 ```
 
 To remove models, indexes, and config:
@@ -411,4 +434,4 @@ rm -rf ~/.grepplus
 
 ## License
 
-Apache-2.0. See workspace `Cargo.toml` for crate metadata.
+Apache-2.0. See root `Cargo.toml` for package metadata.

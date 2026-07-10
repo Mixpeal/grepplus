@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "xtask"]
+members = [".", "xtask"]
 
 [workspace.package]
 version = "0.1.0"
@@ -21,7 +21,7 @@ memchr = "2"
 clap = { version = "4", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-ort = { version = "2.0.0-rc.4", features = ["half"] }
+ort = { version = "2.0.0-rc.12", features = ["half"] }
 tokenizers = "0.20"
 ndarray = "0.17"
 blake3 = "1.5"
@@ -30,7 +30,7 @@ hex = "0.4"
 half = "2"
 rand = "0.8"
 rand_chacha = "0.3"
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.12", features = ["blocking", "json"] }
 indicatif = "0.17"
 inquire = "0.7"
 console = "0.15"
@@ -39,4 +39,70 @@ num_cpus = "1"
 notify = "6.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "signal"] }
 axum = "0.7"
+tower = "0.5"
 tower-http = { version = "0.5", features = ["cors"] }
+
+[package]
+name = "grepplus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Hybrid code search CLI — grep-fast by default, semantic when you need it"
+repository = "https://github.com/Mixpeal/grepplus"
+homepage = "https://github.com/Mixpeal/grepplus"
+authors = ["Kayode Ojo <hello@mixpeal.com>"]
+readme = "README.md"
+keywords = ["search", "grep", "semantic", "embeddings", "cli"]
+categories = ["command-line-utilities", "development-tools"]
+exclude = [
+    "eval/**",
+    "target/**",
+    "scripts/**",
+    ".github/**",
+    "Formula/**",
+]
+
+[[bin]]
+name = "grepplus"
+path = "src/bin/grepplus.rs"
+
+[[bin]]
+name = "gp"
+path = "src/bin/gp.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+blake3 = { workspace = true }
+clap = { workspace = true }
+console = { workspace = true }
+half = { workspace = true }
+hex = { workspace = true }
+ignore = { workspace = true }
+indicatif = { workspace = true }
+inquire = { workspace = true }
+memchr = { workspace = true }
+ndarray = { workspace = true }
+notify = { workspace = true }
+num_cpus = { workspace = true }
+ort = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokenizers = { workspace = true }
+tokio = { workspace = true }
+toml = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+walkdir = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

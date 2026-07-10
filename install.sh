@@ -165,7 +165,7 @@ install_with_cargo() {
   local root="${INSTALL_DIR%/bin}"
   [[ "$root" == "$INSTALL_DIR" ]] && root="${HOME}/.local"
   mkdir -p "${root}/bin"
-  cargo install --git "https://github.com/${REPO}.git" --locked --root "$root" gp-cli
+  cargo install --git "https://github.com/${REPO}.git" --locked --root "$root" grepplus
   info "Installed with cargo to ${root}/bin"
   configure_path
 }

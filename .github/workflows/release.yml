@@ -26,6 +26,10 @@ jobs:
             target: x86_64-unknown-linux-gnu
             asset: grepplus-x86_64-unknown-linux-gnu.tar.gz
             optional: false
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset: grepplus-x86_64-pc-windows-msvc.zip
+            optional: false
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.optional }}
     steps:
@@ -34,14 +38,24 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - name: Build release binaries
-        run: cargo build --release -p gp-cli --target ${{ matrix.target }}
-      - name: Package tarball
+        run: cargo build --release -p grepplus --target ${{ matrix.target }}
+      - name: Package tarball (unix)
+        if: runner.os != 'Windows'
         run: |
           dest="grepplus-${{ matrix.target }}"
           mkdir -p "$dest"
           cp "target/${{ matrix.target }}/release/grepplus" "$dest/"
           cp "target/${{ matrix.target }}/release/gp" "$dest/"
           tar czf "${{ matrix.asset }}" -C "$dest" .
+      - name: Package zip (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dest = "grepplus-${{ matrix.target }}"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/grepplus.exe" "$dest/"
+          Copy-Item "target/${{ matrix.target }}/release/gp.exe" "$dest/"
+          Compress-Archive -Path "$dest/*" -DestinationPath "${{ matrix.asset }}"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}

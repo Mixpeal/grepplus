@@ -8,7 +8,7 @@ fn main() {
     let grepplus = root.join("target/release/grepplus");
     if !grepplus.exists() {
         let status = Command::new("cargo")
-            .args(["build", "--release", "-p", "gp-cli"])
+            .args(["build", "--release", "-p", "grepplus"])
             .current_dir(&root)
             .status()
             .expect("cargo build");
