@@ -4,7 +4,11 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn main() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    // xtask's manifest dir is `xtask/`; workspace root is the parent.
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("xtask is a workspace member")
+        .to_path_buf();
     let grepplus = root.join("target/release/grepplus");
     if !grepplus.exists() {
         let status = Command::new("cargo")
@@ -29,6 +33,7 @@ fn main() {
             "laser,hybrid",
             "--ensure-index",
         ])
+        .current_dir(&root)
         .status()
         .expect("eval compare");
     assert!(eval.success(), "eval compare failed");

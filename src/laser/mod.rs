@@ -96,7 +96,7 @@ fn map_hits_to_chunks(hits: &[GrepHit], cfg: &ChunkConfig) -> Vec<ChunkRef> {
     }
 
     let mut out: Vec<(ChunkRef, usize)> = scored.into_values().collect();
-    out.sort_by(|a, b| b.1.cmp(&a.1));
+    out.sort_by_key(|b| std::cmp::Reverse(b.1));
     out.into_iter().map(|(c, _)| c).collect()
 }
 
