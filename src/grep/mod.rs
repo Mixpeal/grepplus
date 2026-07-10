@@ -24,7 +24,7 @@ pub struct ParallelGrep;
 
 enum Matcher {
     Literal {
-        finder: memmem::Finder<'static>,
+        finder: Box<memmem::Finder<'static>>,
         needle_len: usize,
     },
     Regex(Regex),
@@ -41,7 +41,7 @@ impl Matcher {
             }
             let finder = memmem::Finder::new(pattern.as_bytes()).into_owned();
             Ok(Matcher::Literal {
-                finder,
+                finder: Box::new(finder),
                 needle_len: pattern.len(),
             })
         } else {
