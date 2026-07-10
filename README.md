@@ -45,7 +45,7 @@ cd grepplus
 cargo install --path . --force
 ```
 
-Binaries: `grepplus` and `gp` (identical). Release CI also publishes Linux, macOS, and Windows artifacts.
+Binaries: `grepplus` and `gp` (identical). Release CI publishes Linux (`x86_64`), macOS Apple Silicon (`aarch64`), and Windows (`x86_64`) artifacts.
 
 Data lives under `~/.grepplus/`:
 

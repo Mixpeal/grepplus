@@ -22,7 +22,8 @@ clap = { version = "4", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 ort = { version = "2.0.0-rc.12", features = ["half"] }
-tokenizers = "0.20"
+# Avoid default `esaxx_fast`/`onig`: esaxx-rs forces /MT on MSVC and conflicts with ort's /MD (LNK2038).
+tokenizers = { version = "0.23", default-features = false, features = ["fancy-regex"] }
 ndarray = "0.17"
 blake3 = "1.5"
 sha2 = "0.10"
